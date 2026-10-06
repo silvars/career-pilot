@@ -11,8 +11,8 @@
     "resolveJsonModule": true,
     "declaration": false,
     "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "outDir": "dist"
+    "noUnusedParameters": true
   },
-  "include": ["src", "scripts", "tests"]
+  "include": ["src", "scripts", "tests"],
+  "exclude": ["src/extension", "tests/extension", "dist"]
 }

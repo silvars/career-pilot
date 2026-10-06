@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "CareerPilot",
+  "version": "0.1.0",
+  "description": "Local career assistance for job applications.",
+  "background": {
+    "service_worker": "service-worker.js"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["content-script.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
