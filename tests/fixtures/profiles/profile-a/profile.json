@@ -1,0 +1,9 @@
+{
+  "id": "profile-a",
+  "name": "Profile A",
+  "version": "1.0.0",
+  "documents": [
+    { "path": "identity/summary.md", "type": "identity" },
+    { "path": "skills/java.md", "type": "skills" }
+  ]
+}

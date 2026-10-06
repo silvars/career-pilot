@@ -1,0 +1,8 @@
+{
+  "id": "profile-missing-doc",
+  "name": "Missing Document",
+  "version": "1.0.0",
+  "documents": [
+    { "path": "identity/does-not-exist.md", "type": "identity" }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "id": "rodrigo-matos",
+  "name": "Rodrigo Matos Silva",
+  "version": "1.0.0",
+  "documents": [
+    { "path": "identity/personal.md", "type": "identity" },
+    { "path": "identity/professional-summary.md", "type": "identity" },
+    { "path": "identity/career-objectives.md", "type": "identity" },
+
+    { "path": "experience/current-role.md", "type": "experience" },
+    { "path": "experience/career-history.md", "type": "experience" },
+    { "path": "experience/companies/grupo-casas-bahia.md", "type": "experience" },
+    { "path": "experience/companies/americanas.md", "type": "experience" },
+    { "path": "experience/companies/ccb.md", "type": "experience" },
+    { "path": "experience/companies/previous-experience.md", "type": "experience" },
+
+    { "path": "skills/technical.md", "type": "skills" },
+    { "path": "skills/architecture.md", "type": "skills" },
+    { "path": "skills/cloud.md", "type": "skills" },
+    { "path": "skills/leadership.md", "type": "skills" },
+    { "path": "skills/ai.md", "type": "skills" },
+
+    { "path": "projects/personal/geoalert.md", "type": "projects" },
+    { "path": "projects/personal/stock-ticker.md", "type": "projects" },
+    { "path": "projects/personal/btc-crypto-exploration.md", "type": "projects" },
+    { "path": "projects/personal/career-pilot.md", "type": "projects" },
+
+    { "path": "achievements/business-impact.md", "type": "achievements" },
+    { "path": "achievements/technical-impact.md", "type": "achievements" },
+    { "path": "achievements/leadership-impact.md", "type": "achievements" },
+
+    { "path": "stories/leadership.md", "type": "stories" },
+    { "path": "stories/architecture.md", "type": "stories" },
+    { "path": "stories/problem-solving.md", "type": "stories" },
+    { "path": "stories/conflict.md", "type": "stories" },
+    { "path": "stories/failure.md", "type": "stories" },
+    { "path": "stories/impact.md", "type": "stories" },
+
+    { "path": "sources/linkedin.md", "type": "sources" },
+    { "path": "sources/personal-site.md", "type": "sources" },
+    { "path": "sources/github.md", "type": "sources" },
+    { "path": "sources/other.md", "type": "sources" }
+  ]
+}

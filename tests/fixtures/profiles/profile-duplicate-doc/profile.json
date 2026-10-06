@@ -1,0 +1,9 @@
+{
+  "id": "profile-duplicate-doc",
+  "name": "Duplicate Document",
+  "version": "1.0.0",
+  "documents": [
+    { "path": "identity/summary.md", "type": "identity" },
+    { "path": "identity/summary.md", "type": "identity" }
+  ]
+}
