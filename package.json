@@ -9,6 +9,7 @@
     "build": "node scripts/build-extension.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
+    "validate": "bash scripts/validate.sh",
     "sync-profile": "tsx scripts/sync-profile.ts"
   },
   "devDependencies": {

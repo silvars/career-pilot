@@ -1,6 +1,6 @@
 # CareerPilot — Chrome Extension Shell SDD
 
-**Status:** IMPLEMENTED (logical scope) — 2026-10-06. EXT-014 (manual Chrome load) pending user confirmation.
+**Status:** IMPLEMENTED — 2026-10-06. All logical and manual DoD items confirmed (EXT-014 verified by the user on a real job page, see 26.1).
 **Phase:** FASE 3 — Chrome Extension Shell
 **Previous phases:** FASE 1 — Profile Reader ✅ | FASE 2 — Job Match (logic) ✅
 **Next phase:** FASE 4 — Job Match + Chrome
@@ -811,7 +811,7 @@ permanece pendente de confirmação manual pelo usu\u00e1rio (decision 1.1).
 | EXT-011 | Add extension unit tests | ✅ DONE — `tests/extension/` (messages, state, message-handler, popup view model) |
 | EXT-012 | Add messaging integration tests | ✅ DONE — `tests/extension/serviceWorker.test.ts`, `tests/extension/contentScript.test.ts` (hand-rolled `chrome.*` mocks, no `sinon-chrome`) |
 | EXT-013 | Validate manifest/build | ✅ DONE — `tests/extension/manifest.test.ts` (structural) + manual `npm run build` run, `dist/` inspected |
-| EXT-014 | Validate local Chrome installation | ⏳ PENDING — requires manual confirmation by the user (decision 1.1); see README "Loading it in Chrome" |
+| EXT-014 | Validate local Chrome installation | ✅ DONE — confirmed manually by the user 2026-10-06: popup loaded on a real job posting (Akad Seguros, "Engineering Manager"), showing Profile "Rodrigo Matos Silva", Extension "Ready", Current page "Connected" |
 | EXT-015 | Security review | ✅ DONE — no `permissions`, no `eval`, no remote code, content script only reports `{url,title}`, job/page text never sent externally (reuses FASE 2's untrusted-input handling) |
 | EXT-016 | Documentation | ✅ DONE — `README.md` (setup, test, typecheck, sync-profile, build, load-unpacked steps) |
 
@@ -872,14 +872,14 @@ Agent-verifiable automatically (build output, manifest shape, test suite):
 - [x] No Job Match browser integration is implemented (no `ChromeJobPageSource`).
 - [x] Documentation describes how to build and load the extension.
 
-Requires **manual confirmation by the user** in a real Chrome window (decision 1.1 — not verifiable by the agent in this environment):
+Requires **manual confirmation by the user** in a real Chrome window (decision 1.1) — **confirmed 2026-10-06** (screenshot: real job posting, popup showing Profile/Extension Ready/Current page Connected):
 
-- [ ] Generated build can be loaded unpacked in Chrome.
-- [ ] Service Worker starts correctly.
-- [ ] Content Script loads on supported (http/https) pages.
-- [ ] Popup opens correctly.
-- [ ] Popup communicates with Service Worker.
-- [ ] Service Worker communicates with Content Script.
+- [x] Generated build can be loaded unpacked in Chrome.
+- [x] Service Worker starts correctly.
+- [x] Content Script loads on supported (http/https) pages.
+- [x] Popup opens correctly.
+- [x] Popup communicates with Service Worker.
+- [x] Service Worker communicates with Content Script.
 
 ---
 
