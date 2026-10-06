@@ -1,4 +1,14 @@
-import type { PageContext } from "../messaging/messages.js";
+import type { MatchResult } from "../../job-match/types.js";
+import type { ExtensionErrorPayload, PageContext } from "../messaging/messages.js";
+
+export type JobMatchStatus = "idle" | "analyzing" | "success" | "error";
+
+/** FASE 4 analysis state — nested under ExtensionState rather than flattened (decision 1.1). */
+export interface JobMatchRuntimeState {
+  status: JobMatchStatus;
+  result: MatchResult | null;
+  error: ExtensionErrorPayload | null;
+}
 
 /** FASE 3 only needs transient, in-memory state (SDD section 12) — nothing persisted. */
 export interface ExtensionState {
@@ -6,6 +16,11 @@ export interface ExtensionState {
   activeProfileId: string | null;
   currentPage: PageContext | null;
   contentScriptConnected: boolean;
+  jobMatch: JobMatchRuntimeState;
+}
+
+function createInitialJobMatchState(): JobMatchRuntimeState {
+  return { status: "idle", result: null, error: null };
 }
 
 export function createInitialState(): ExtensionState {
@@ -14,6 +29,7 @@ export function createInitialState(): ExtensionState {
     activeProfileId: null,
     currentPage: null,
     contentScriptConnected: false,
+    jobMatch: createInitialJobMatchState(),
   };
 }
 
@@ -23,4 +39,16 @@ export function withInitialized(state: ExtensionState, activeProfileId: string):
 
 export function withPageContext(state: ExtensionState, page: PageContext | null): ExtensionState {
   return { ...state, currentPage: page, contentScriptConnected: page !== null };
+}
+
+export function withJobMatchStatus(state: ExtensionState, status: JobMatchStatus): ExtensionState {
+  return { ...state, jobMatch: { ...state.jobMatch, status } };
+}
+
+export function withJobMatchResult(state: ExtensionState, result: MatchResult): ExtensionState {
+  return { ...state, jobMatch: { status: "success", result, error: null } };
+}
+
+export function withJobMatchError(state: ExtensionState, error: ExtensionErrorPayload): ExtensionState {
+  return { ...state, jobMatch: { status: "error", result: null, error } };
 }

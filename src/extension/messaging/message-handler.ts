@@ -6,6 +6,8 @@ export interface MessageHandlerContext {
   getExtensionStatus(): ExtensionResponse;
   getActiveProfile(): Promise<ExtensionResponse>;
   relayToContentScript(message: ExtensionMessage): Promise<ExtensionResponse>;
+  analyzeCurrentJob(): Promise<ExtensionResponse>;
+  getMatchResult(): ExtensionResponse;
 }
 
 /**
@@ -35,7 +37,12 @@ export async function handleMessage(
         return await ctx.getActiveProfile();
       case "PING_CONTENT_SCRIPT":
       case "GET_PAGE_CONTEXT":
+      case "EXTRACT_JOB_PAGE":
         return await ctx.relayToContentScript(message);
+      case "ANALYZE_CURRENT_JOB":
+        return await ctx.analyzeCurrentJob();
+      case "GET_MATCH_RESULT":
+        return ctx.getMatchResult();
     }
   } catch (cause) {
     return { success: false, error: toErrorPayload(cause) };

@@ -4,6 +4,7 @@ import { KeywordRetriever } from "../profile/retriever.js";
 import type { Profile, RetrievalResult } from "../profile/types.js";
 import { JobMatchError } from "./errors.js";
 import { normalizeRequirement } from "./requirementDictionary.js";
+import { normalizeForRetrieval } from "./requirementNormalizer.js";
 import { DEFAULT_MATCH_SCORING } from "./scoringConfig.js";
 import { LANGUAGE_NAMES } from "./jobAnalyzer.js";
 import type {
@@ -70,6 +71,28 @@ async function searchSafely(
   }
 }
 
+// Tries every retrieval query variant (pt-BR/EN concept normalization,
+// section's own EN synonym dictionary, and the untouched original text) and
+// keeps whichever yields the best top score — strictly additive: never
+// worse than searching the original text alone (SDD rule: no scoring/weight
+// changes, only more chances to find a real match across languages).
+async function bestAcrossVariants(
+  retriever: KeywordRetriever,
+  variants: string[]
+): Promise<RetrievalResult[]> {
+  let best: RetrievalResult[] = [];
+  let bestScore = -1;
+  for (const variant of variants) {
+    const results = await searchSafely(retriever, variant);
+    const score = results[0]?.score ?? 0;
+    if (score > bestScore) {
+      bestScore = score;
+      best = results;
+    }
+  }
+  return best;
+}
+
 /** No hallucination (SDD section 14): MISSING always carries empty evidence. */
 async function evaluateAgainstProfile(
   requirementText: string,
@@ -77,7 +100,9 @@ async function evaluateAgainstProfile(
   retriever: KeywordRetriever
 ): Promise<MatchRequirement> {
   const { canonicalQuery } = normalizeRequirement(requirementText);
-  const results = await searchSafely(retriever, canonicalQuery);
+  const { queryVariants } = normalizeForRetrieval(requirementText);
+  const variants = Array.from(new Set([...queryVariants, canonicalQuery]));
+  const results = await bestAcrossVariants(retriever, variants);
 
   if (results.length === 0) {
     return { requirement: requirementText, type, status: "MISSING", score: 0, evidence: [] };

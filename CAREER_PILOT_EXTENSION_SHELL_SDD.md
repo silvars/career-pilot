@@ -41,6 +41,16 @@ Validated against the real `career-pilot` repository state before implementation
   for dynamic injection (`chrome.scripting.executeScript`) or for reading
   `tab.url`/`tab.title` via `chrome.tabs.query`, neither of which FASE 3 does
   (the content script supplies its own URL/title in its response).
+  **Addendum (FASE 4, 2026-10-06):** this held for FASE 3's scope only.
+  FASE 4 introduced the first real read of `tab.url`
+  (`isSupportedPageUrl(tab.url)` in `analyzeCurrentJob`), and that genuinely
+  requires `"tabs"` or host permissions per the official Chrome docs —
+  `content_scripts.matches` alone does **not** expose `tab.url`/`title`/
+  `favIconUrl`. `"permissions": ["activeTab"]` was added back to
+  `manifest.json` for that reason (least-privilege fix: no install-time
+  warning, scoped to the current tab, activated by the user opening the
+  popup). See `CAREER_PILOT_JOB_MATCH_CHROME_SDD.md` section 1.1 for the
+  full incident.
 - **`ChromeProfileLoader`**: `FsProfileLoader` (FASE 1) uses `node:fs`, which
   does not exist in a service worker. A new `ChromeProfileLoader` —
   implementing the existing `ProfileLoader` interface via
@@ -868,7 +878,7 @@ Agent-verifiable automatically (build output, manifest shape, test suite):
 - [x] Extension-specific tests pass (service worker, messaging, popup pure functions, `ChromeProfileLoader` against a mocked `chrome.*`).
 - [x] No candidate data is persisted (no `localStorage`/`IndexedDB`/cookies in the new code).
 - [x] No external service is required (no `fetch` to non-`chrome-extension://` origins in the new code).
-- [x] No unnecessary Chrome permission is requested (manifest declares no `"permissions"` at all — only the restricted `content_scripts.matches`).
+- [x] No unnecessary Chrome permission is requested (as of FASE 3: manifest declared no `"permissions"` at all; FASE 4 later added the single least-privilege `activeTab` permission, justified by a genuine new need — see addendum in section 1.1).
 - [x] No Job Match browser integration is implemented (no `ChromeJobPageSource`).
 - [x] Documentation describes how to build and load the extension.
 

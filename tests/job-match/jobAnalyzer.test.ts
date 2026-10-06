@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { RuleBasedJobAnalyzer } from "../../src/job-match/jobAnalyzer.js";
+import { buildExtractedJobPage, toJobPage } from "../../src/extension/job-extraction/extractor.js";
+import { AKAD_INHIRE_RAW_MATERIALS } from "../fixtures/pages/akadInhire.js";
 import {
   ELIGIBILITY_JOB,
   LANGUAGE_JOB,
@@ -78,5 +80,92 @@ describe("RuleBasedJobAnalyzer", () => {
       text: "Some other first line\n\nRequirements:\n- Java\n",
     });
     expect(job.title).toBe("Explicit Title");
+  });
+
+  describe("pt-BR header recognition (real finding, 2026-10-06 — Akad/InHire job posting)", () => {
+    it("buckets Portuguese 'Requisitos'/'Responsabilidades'/'Diferenciais' headers like their English equivalents", async () => {
+      const job = await analyzer.analyze({
+        text: [
+          "Engenheiro de Software Sênior",
+          "",
+          "Responsabilidades:",
+          "- Liderar o squad de pagamentos",
+          "- Participar de discovery de produto",
+          "",
+          "Requisitos:",
+          "- Experiência sólida com Java",
+          "- Experiência com AWS",
+          "",
+          "Diferenciais:",
+          "- Experiência com Kubernetes",
+        ].join("\n"),
+      });
+
+      expect(job.responsibilities).toEqual(
+        expect.arrayContaining(["Liderar o squad de pagamentos", "Participar de discovery de produto"])
+      );
+      expect(job.requiredSkills).toEqual(expect.arrayContaining(["Java", "AWS"]));
+      expect(job.preferredSkills).toEqual(expect.arrayContaining(["Kubernetes"]));
+    });
+
+    it("recognizes the exact real-world headers 'O que você precisa ter?' and 'Você se destacará se tiver...'", async () => {
+      const job = await analyzer.analyze({
+        text: [
+          "Engineering Manager",
+          "",
+          "O que você precisa ter?",
+          "- Experiência sólida gerenciando pessoas",
+          "",
+          "Você se destacará se tiver...",
+          "- Experiência no setor de seguros",
+        ].join("\n"),
+      });
+
+      expect(job.requiredExperience).toEqual(
+        expect.arrayContaining(["Experiência sólida gerenciando pessoas"])
+      );
+      expect(job.preferredSkills).toEqual(expect.arrayContaining(["Experiência no setor de seguros"]));
+    });
+
+    it("excludes 'Sobre a empresa' and 'Benefícios' content from required/preferred/responsibilities", async () => {
+      const job = await analyzer.analyze({
+        text: [
+          "Engineering Manager",
+          "",
+          "Requisitos:",
+          "- Experiência com Java",
+          "",
+          "Sobre a empresa",
+          "Somos uma empresa incrível fundada em 2010.",
+          "",
+          "Benefícios:",
+          "Vale refeição e plano de saúde.",
+        ].join("\n"),
+      });
+
+      expect(job.requiredSkills).toEqual(["Java"]);
+      expect(job.requiredExperience).toEqual([]);
+      expect(job.responsibilities).toEqual([]);
+    });
+
+    it("detects 'Remoto'/'Remota' and 'Híbrido' as Remote/Hybrid work models", async () => {
+      const remote = await analyzer.analyze({ text: "Engenheiro\n\nRequisitos:\n- Java\n\nModelo de trabalho 100% Remoto" });
+      expect(remote.workModel).toBe("Remote");
+
+      const hybrid = await analyzer.analyze({ text: "Engenheiro\n\nRequisitos:\n- Java\n\nTrabalho híbrido, 2x por semana no escritório" });
+      expect(hybrid.workModel).toBe("Hybrid");
+    });
+
+    it("regression: the real Akad/InHire posting must not collapse into title/seniority only", async () => {
+      const { extracted } = buildExtractedJobPage(AKAD_INHIRE_RAW_MATERIALS);
+      const job = await analyzer.analyze(toJobPage(extracted));
+
+      // Before the pt-BR header fix, every one of these was empty and the
+      // Match Engine scored this exact posting 100/100 from title alone.
+      expect(job.responsibilities.length).toBeGreaterThan(0);
+      expect(job.requiredExperience.length).toBeGreaterThan(0);
+      expect(job.preferredSkills.length).toBeGreaterThan(0);
+      expect(job.workModel).toBe("Remote");
+    });
   });
 });

@@ -1,9 +1,17 @@
 import { DefaultProfileManager } from "../../profile/profileManager.js";
+import { RuleBasedJobAnalyzer, RuleBasedMatchEngine } from "../../job-match/index.js";
 import { ChromeProfileLoader } from "../profile/chromeProfileLoader.js";
+import { ChromeJobPageSource, isSupportedPageUrl } from "../job-extraction/index.js";
 import { ExtensionError, toErrorPayload } from "../errors.js";
 import { handleMessage } from "../messaging/message-handler.js";
 import type { ExtensionMessage, ExtensionResponse } from "../messaging/messages.js";
-import { createInitialState, withInitialized } from "../state/extension-state.js";
+import {
+  createInitialState,
+  withInitialized,
+  withJobMatchError,
+  withJobMatchResult,
+  withJobMatchStatus,
+} from "../state/extension-state.js";
 import type { ExtensionState } from "../state/extension-state.js";
 
 // Hardcoded for FASE 3: a single bundled profile. Multi-profile selection
@@ -11,6 +19,9 @@ import type { ExtensionState } from "../state/extension-state.js";
 const ACTIVE_PROFILE_ID = "rodrigo-matos";
 
 const profileManager = new DefaultProfileManager(new ChromeProfileLoader());
+const jobPageSource = new ChromeJobPageSource();
+const jobAnalyzer = new RuleBasedJobAnalyzer();
+const matchEngine = new RuleBasedMatchEngine();
 let state: ExtensionState = createInitialState();
 let initPromise: Promise<void> | null = null;
 
@@ -89,9 +100,70 @@ async function relayToContentScript(message: ExtensionMessage): Promise<Extensio
   }
 }
 
+/**
+ * Orchestrates the full FASE 4 flow (SDD section 18): active tab/URL checks
+ * are Chrome-specific concerns handled here, not inside ChromeJobPageSource;
+ * extraction/analysis/matching errors are domain errors translated via
+ * toErrorPayload (src/extension/errors.ts).
+ */
+async function analyzeCurrentJob(): Promise<ExtensionResponse> {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.id) {
+    return {
+      success: false,
+      error: { code: "CURRENT_TAB_NOT_AVAILABLE", message: "No active tab found." },
+    };
+  }
+  if (!isSupportedPageUrl(tab.url)) {
+    return {
+      success: false,
+      error: {
+        code: "UNSUPPORTED_PAGE",
+        message: `This page cannot be analyzed: ${tab.url ?? "unknown URL"}`,
+      },
+    };
+  }
+
+  const profile = profileManager.getActiveProfile();
+  if (!profile) {
+    return {
+      success: false,
+      error: { code: "PROFILE_NOT_LOADED", message: "No active profile loaded yet." },
+    };
+  }
+
+  state = withJobMatchStatus(state, "analyzing");
+
+  try {
+    const job = await jobPageSource.getCurrentJobPage();
+    const requirements = await jobAnalyzer.analyze(job);
+    const result = await matchEngine.evaluate(requirements, profile);
+
+    state = withJobMatchResult(state, result);
+    return { success: true, data: result };
+  } catch (cause) {
+    const error = toErrorPayload(cause);
+    state = withJobMatchError(state, error);
+    return { success: false, error };
+  }
+}
+
+/** Returns the last completed analysis, if any — does not trigger a new one (SDD section 28). */
+function getMatchResult(): ExtensionResponse {
+  return { success: true, data: state.jobMatch.result };
+}
+
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   ensureInitialized()
-    .then(() => handleMessage(message, { getExtensionStatus, getActiveProfile, relayToContentScript }))
+    .then(() =>
+      handleMessage(message, {
+        getExtensionStatus,
+        getActiveProfile,
+        relayToContentScript,
+        analyzeCurrentJob,
+        getMatchResult,
+      })
+    )
     .then(sendResponse)
     .catch((cause) => sendResponse({ success: false, error: toErrorPayload(cause) }));
   return true; // keep the message channel open for the async sendResponse above

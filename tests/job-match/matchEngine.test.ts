@@ -5,6 +5,8 @@ import { FsProfileLoader } from "../../src/profile/profileLoader.js";
 import type { Profile } from "../../src/profile/types.js";
 import { RuleBasedJobAnalyzer } from "../../src/job-match/jobAnalyzer.js";
 import { RuleBasedMatchEngine } from "../../src/job-match/matchEngine.js";
+import { buildExtractedJobPage, toJobPage } from "../../src/extension/job-extraction/extractor.js";
+import { AKAD_INHIRE_RAW_MATERIALS } from "../fixtures/pages/akadInhire.js";
 import {
   BASELINE_NO_ELIGIBILITY_JOB,
   ELIGIBILITY_JOB,
@@ -154,6 +156,38 @@ describe("RuleBasedMatchEngine against the real rodrigo-matos profile", () => {
           expect(evidence.chunkId.length).toBeGreaterThan(0);
         }
       }
+    });
+  });
+
+  describe("pt-BR <-> EN requirement normalization (real finding, 2026-10-06 — Akad/InHire)", () => {
+    it("scores the real Akad/InHire posting higher than the pre-normalizer baseline (61), with traceable evidence and no fabricated matches", async () => {
+      const { extracted } = buildExtractedJobPage(AKAD_INHIRE_RAW_MATERIALS);
+      const job = await analyzer.analyze(toJobPage(extracted));
+      const result = await engine.evaluate(job, profile);
+
+      // Baseline (English-only retrieval, before this normalizer) was 61 —
+      // TITLE/SENIORITY matched, everything else MISSING purely from
+      // language mismatch. More real pt-BR requirements must now resolve to
+      // MATCHED/PARTIAL instead of a false MISSING.
+      expect(result.score).toBeGreaterThan(61);
+      expect(result.matchedRequirements.length + result.partialRequirements.length).toBeGreaterThan(2);
+
+      // No hallucination: every non-MISSING requirement still carries real
+      // evidence pointing at actual profile chunks (SDD section 14).
+      for (const requirement of [...result.matchedRequirements, ...result.partialRequirements]) {
+        expect(requirement.evidence.length).toBeGreaterThan(0);
+        for (const evidence of requirement.evidence) {
+          expect(evidence.profileId).toBe("rodrigo-matos");
+        }
+      }
+
+      // The people-management requirement (pt-BR: "gerenciando pessoas" /
+      // "feedback, 1:1s e desenvolvimento de carreira") must no longer be a
+      // false MISSING — the profile explicitly lists this capability in English.
+      const peopleManagement = [...result.matchedRequirements, ...result.partialRequirements].find((r) =>
+        /gerenciando pessoas/i.test(r.requirement)
+      );
+      expect(peopleManagement).toBeDefined();
     });
   });
 });

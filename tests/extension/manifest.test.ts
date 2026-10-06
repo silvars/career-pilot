@@ -30,7 +30,13 @@ describe("manifest.json", () => {
     expect(contentScript.js).toEqual(["content-script.js"]);
   });
 
-  it("requests no permissions (least privilege — SDD decision 2026-10-06)", () => {
-    expect(manifest.permissions).toBeUndefined();
+  it("requests only activeTab (least privilege, no install-time warning)", () => {
+    // Required starting FASE 4: chrome.tabs.query's `url` field is only
+    // populated with "tabs" permission or host permissions — content_scripts
+    // matches alone is NOT enough (confirmed against the official Chrome
+    // docs after a real false negative: "This page cannot be analyzed:
+    // unknown URL" on a real http(s) page). activeTab is the least-privilege
+    // fix since every analysis is already user-triggered via the popup.
+    expect(manifest.permissions).toEqual(["activeTab"]);
   });
 });

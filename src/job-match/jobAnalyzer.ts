@@ -14,6 +14,13 @@ const REQUIRED_HEADERS = [
   "minimum qualifications",
   "basic qualifications",
   "qualifications",
+  // pt-BR (real finding, 2026-10-06 — Akad/InHire job posting):
+  "requisitos",
+  "requisitos obrigatorios",
+  "pre-requisitos",
+  "o que voce precisa ter",
+  "o que buscamos",
+  "qualificacoes necessarias",
 ];
 
 const PREFERRED_HEADERS = [
@@ -22,6 +29,11 @@ const PREFERRED_HEADERS = [
   "preferred",
   "bonus points",
   "bonus",
+  // pt-BR (real finding, 2026-10-06):
+  "diferenciais",
+  "voce se destacara se tiver",
+  "desejavel",
+  "sera um diferencial",
 ];
 
 const RESPONSIBILITY_HEADERS = [
@@ -29,6 +41,11 @@ const RESPONSIBILITY_HEADERS = [
   "what you'll do",
   "what you will do",
   "duties",
+  // pt-BR (real finding, 2026-10-06):
+  "responsabilidades",
+  "suas responsabilidades",
+  "o que voce vai fazer",
+  "atividades",
 ];
 
 const OTHER_KNOWN_HEADERS = [
@@ -43,6 +60,14 @@ const OTHER_KNOWN_HEADERS = [
   "equal opportunity employer",
   "compensation",
   "location",
+  // pt-BR (real finding, 2026-10-06):
+  "beneficios",
+  "sobre a empresa",
+  "sobre nos",
+  "o que oferecemos",
+  "localizacao",
+  "modelo de trabalho",
+  "como se candidatar",
 ];
 
 type Bucket = "required" | "preferred" | "responsibilities" | null;
@@ -74,15 +99,31 @@ const SENIORITY_PRIORITY = [
 ];
 
 const WORK_MODEL_PRIORITY: Array<{ label: string; pattern: RegExp }> = [
-  { label: "Remote", pattern: /\bremote\b/i },
-  { label: "Hybrid", pattern: /\bhybrid\b/i },
-  { label: "On-site", pattern: /\bon-?site\b/i },
+  // pt-BR variants (real finding, 2026-10-06): "remoto"/"remota", "hibrido"/"hibrida"
+  { label: "Remote", pattern: /\bremote\b|\bremot[oa]\b/i },
+  { label: "Hybrid", pattern: /\bhybrid\b|\bh[ií]brid[oa]\b/i },
+  { label: "On-site", pattern: /\bon-?site\b|\bpresencial\b/i },
 ];
 
-const KNOWN_LOCATIONS = ["United States", "Brazil", "USA", "Europe", "Portugal", "Canada"];
+const KNOWN_LOCATIONS = [
+  "United States",
+  "Brazil",
+  "Brasil",
+  "USA",
+  "Europe",
+  "Portugal",
+  "Canada",
+];
 
+// Normalizes diacritics too (accent-insensitive header matching — pt-BR
+// headers are written with/without accents inconsistently across ATSs).
 function normalizeHeaderLine(line: string): string {
-  return line.trim().toLowerCase().replace(/:\s*$/, "");
+  return line
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[:?!.\u2026]+\s*$/, "");
 }
 
 function matchesAnyHeader(normalized: string, headers: string[]): boolean {

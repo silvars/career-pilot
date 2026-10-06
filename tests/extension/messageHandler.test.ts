@@ -8,6 +8,8 @@ function makeCtx(overrides: Partial<MessageHandlerContext> = {}): MessageHandler
     getExtensionStatus: () => ({ success: true, data: { initialized: true, activeProfileId: "rodrigo-matos" } }),
     getActiveProfile: async () => ({ success: true, data: { id: "rodrigo-matos", name: "Rodrigo Matos Silva" } }),
     relayToContentScript: async () => ({ success: true, data: { alive: true } }),
+    analyzeCurrentJob: async () => ({ success: true, data: null }),
+    getMatchResult: () => ({ success: true, data: null }),
     ...overrides,
   };
 }
@@ -35,16 +37,38 @@ describe("handleMessage", () => {
     expect(response).toEqual({ success: true, data: { id: "rodrigo-matos", name: "Rodrigo Matos Silva" } });
   });
 
-  it("routes PING_CONTENT_SCRIPT and GET_PAGE_CONTEXT to ctx.relayToContentScript", async () => {
+  it("routes PING_CONTENT_SCRIPT, GET_PAGE_CONTEXT and EXTRACT_JOB_PAGE to ctx.relayToContentScript", async () => {
     const relay = vi.fn(async (): Promise<ExtensionResponse> => ({ success: true, data: { alive: true } }));
     const ctx = makeCtx({ relayToContentScript: relay });
 
     await handleMessage({ type: "PING_CONTENT_SCRIPT" }, ctx);
     await handleMessage({ type: "GET_PAGE_CONTEXT" }, ctx);
+    await handleMessage({ type: "EXTRACT_JOB_PAGE" }, ctx);
 
-    expect(relay).toHaveBeenCalledTimes(2);
+    expect(relay).toHaveBeenCalledTimes(3);
     expect(relay).toHaveBeenNthCalledWith(1, { type: "PING_CONTENT_SCRIPT" });
     expect(relay).toHaveBeenNthCalledWith(2, { type: "GET_PAGE_CONTEXT" });
+    expect(relay).toHaveBeenNthCalledWith(3, { type: "EXTRACT_JOB_PAGE" });
+  });
+
+  it("routes ANALYZE_CURRENT_JOB to ctx.analyzeCurrentJob", async () => {
+    const analyze = vi.fn(async (): Promise<ExtensionResponse> => ({ success: true, data: { score: 90 } }));
+    const ctx = makeCtx({ analyzeCurrentJob: analyze });
+
+    const response = await handleMessage({ type: "ANALYZE_CURRENT_JOB" }, ctx);
+
+    expect(analyze).toHaveBeenCalledTimes(1);
+    expect(response).toEqual({ success: true, data: { score: 90 } });
+  });
+
+  it("routes GET_MATCH_RESULT to ctx.getMatchResult", async () => {
+    const getResult = vi.fn((): ExtensionResponse => ({ success: true, data: null }));
+    const ctx = makeCtx({ getMatchResult: getResult });
+
+    const response = await handleMessage({ type: "GET_MATCH_RESULT" }, ctx);
+
+    expect(getResult).toHaveBeenCalledTimes(1);
+    expect(response).toEqual({ success: true, data: null });
   });
 
   it("converts a thrown error from the context into an INTERNAL_ERROR response instead of crashing", async () => {

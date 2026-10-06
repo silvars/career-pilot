@@ -2,6 +2,7 @@ export * from "./errors.js";
 export * from "./types.js";
 export * from "./jobPageSource.js";
 export * from "./requirementDictionary.js";
+export * from "./requirementNormalizer.js";
 export * from "./eligibilityDictionary.js";
 export * from "./skillVocabulary.js";
 export * from "./jobAnalyzer.js";
