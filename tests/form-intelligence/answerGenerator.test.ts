@@ -184,9 +184,9 @@ describe("generateAnswer — fields that must never be inferred (rules 6-10)", (
     expect(answer).toMatchObject({ source: "USER_REQUIRED", evidence: [] });
   });
 
-  it("protected-characteristic questions (EEO self-ID) are never answered via retrieval, even classified as CUSTOM_QUESTION (real Greenhouse form finding)", async () => {
+  it("protected-characteristic questions (EEO self-ID) are never answered via retrieval (real Greenhouse form finding — now classified explicitly as PROTECTED_OR_LEGAL, FASE 5.5 hardening)", async () => {
     const intent = classifyField(field({ label: "Which gender do you identify as?" }));
-    expect(intent.semanticType).toBe("CUSTOM_QUESTION"); // no dedicated SemanticFieldType catches this
+    expect(intent.semanticType).toBe("PROTECTED_OR_LEGAL");
 
     const answer = await generateAnswer(intent, realKeywordRetriever());
     expect(answer).toMatchObject({ source: "USER_REQUIRED", evidence: [] });
@@ -198,6 +198,73 @@ describe("generateAnswer — fields that must never be inferred (rules 6-10)", (
       const answer = await generateAnswer(intent, realKeywordRetriever());
       expect(answer.source).toBe("USER_REQUIRED");
     }
+  });
+});
+
+describe("FASE 5.5 hardening — real validation regressions", () => {
+  it('"Não sou brasileiro" (real pt-BR nationality/eligibility field) classifies PROTECTED_OR_LEGAL -> USER_REQUIRED, never retrieval', async () => {
+    const intent = classifyField(field({ label: "Não sou brasileiro" }));
+    expect(intent.semanticType).toBe("PROTECTED_OR_LEGAL");
+
+    const answer = await generateAnswer(intent, realKeywordRetriever());
+    expect(answer).toMatchObject({ source: "USER_REQUIRED", evidence: [] });
+  });
+
+  it('"Você precisa de sponsorship?" -> USER_REQUIRED', async () => {
+    const intent = classifyField(field({ label: "Você precisa de sponsorship?" }));
+    const answer = await generateAnswer(intent, realKeywordRetriever());
+    expect(answer).toMatchObject({ source: "USER_REQUIRED", evidence: [] });
+  });
+
+  it('"Qual sua raça/etnia?" -> PROTECTED_OR_LEGAL -> USER_REQUIRED', async () => {
+    const intent = classifyField(field({ label: "Qual sua raça/etnia?" }));
+    expect(intent.semanticType).toBe("PROTECTED_OR_LEGAL");
+    const answer = await generateAnswer(intent, realKeywordRetriever());
+    expect(answer).toMatchObject({ source: "USER_REQUIRED", evidence: [] });
+  });
+
+  it('"Qual seu gênero?" -> PROTECTED_OR_LEGAL -> USER_REQUIRED', async () => {
+    const intent = classifyField(field({ label: "Qual seu gênero?" }));
+    expect(intent.semanticType).toBe("PROTECTED_OR_LEGAL");
+    const answer = await generateAnswer(intent, realKeywordRetriever());
+    expect(answer).toMatchObject({ source: "USER_REQUIRED", evidence: [] });
+  });
+
+  it('"G Recaptcha Response" (real Greenhouse id "g-recaptcha-response", no label) -> SYSTEM_FIELD -> NONE, never retrieval', async () => {
+    const intent = classifyField(field({ label: undefined, name: "g-recaptcha-response", source: "NAME" }));
+    expect(intent.semanticType).toBe("SYSTEM_FIELD");
+
+    const answer = await generateAnswer(intent, realKeywordRetriever());
+    expect(answer).toMatchObject({ source: "NONE", evidence: [], requiresReview: false });
+  });
+
+  it('"CPF" -> DOCUMENT_ID -> USER_REQUIRED (never UNKNOWN, never added to the Profile)', async () => {
+    const intent = classifyField(field({ label: "CPF" }));
+    expect(intent.semanticType).toBe("DOCUMENT_ID");
+    const answer = await generateAnswer(intent, realKeywordRetriever());
+    expect(answer).toMatchObject({ source: "USER_REQUIRED", evidence: [] });
+  });
+
+  it('"000.000.000-00" (CPF-shaped placeholder, no other signal) -> DOCUMENT_ID -> USER_REQUIRED', async () => {
+    const intent = classifyField(field({ label: undefined, placeholder: "000.000.000-00", source: "PLACEHOLDER" }));
+    expect(intent.semanticType).toBe("DOCUMENT_ID");
+    const answer = await generateAnswer(intent, realKeywordRetriever());
+    expect(answer).toMatchObject({ source: "USER_REQUIRED", evidence: [] });
+  });
+
+  it('"Cidade" -> LOCATION, and USER_REQUIRED (never UNKNOWN) when the Profile has no canonical location evidence', async () => {
+    const intent = classifyField(field({ label: "Cidade" }));
+    expect(intent.semanticType).toBe("LOCATION");
+
+    const answer = await generateAnswer(intent, { retriever: new KeywordRetriever([]) });
+    expect(answer).toMatchObject({ source: "USER_REQUIRED", evidence: [] });
+  });
+
+  it("CAPTCHA never reaches Profile Retrieval even for a question-like label", async () => {
+    const intent = classifyField(field({ label: "Please complete the reCAPTCHA challenge below" }));
+    expect(intent.semanticType).toBe("SYSTEM_FIELD");
+    const answer = await generateAnswer(intent, realKeywordRetriever());
+    expect(answer.source).not.toBe("PROFILE_RETRIEVAL");
   });
 });
 

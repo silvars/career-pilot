@@ -26,6 +26,66 @@ export interface SemanticFieldConcept {
 }
 
 export const SEMANTIC_FIELD_CONCEPTS: SemanticFieldConcept[] = [
+  // FASE 5.5 hardening: checked first, before anything else, so a
+  // coincidental keyword overlap elsewhere (e.g. "location"/"experience")
+  // can never swallow a protected/legal/system question first. Real
+  // validation finding: "Which gender do you identify as?" and a real
+  // Brazilian ATS field meaning "I am not Brazilian" were both falling
+  // through to CUSTOM_QUESTION -> PROFILE_RETRIEVAL and returning
+  // unrelated Profile text as an "answer".
+  {
+    type: "PROTECTED_OR_LEGAL",
+    textKeywords: [
+      "nationality",
+      "nacionalidade",
+      "citizenship",
+      "cidadania",
+      "citizen",
+      "cidadao",
+      "brasileiro",
+      "brasileira",
+      "estrangeiro",
+      "race",
+      "raca",
+      "ethnicity",
+      "etnia",
+      "hispanic",
+      "latino",
+      "gender",
+      "genero",
+      "religion",
+      "religiao",
+      "sexual orientation",
+      "orientacao sexual",
+      "disability",
+      "deficiencia",
+      "veteran",
+      "legal eligibility",
+      "elegibilidade legal",
+    ],
+    answerStrategy: "USER_INPUT_REQUIRED",
+  },
+  {
+    type: "DOCUMENT_ID",
+    textKeywords: ["cpf", "documento de identidade", "document number", "id number", "passport", "passaporte", "rg number"],
+    answerStrategy: "USER_INPUT_REQUIRED",
+  },
+  {
+    type: "SYSTEM_FIELD",
+    textKeywords: [
+      "recaptcha",
+      "g-recaptcha",
+      "hcaptcha",
+      "h-captcha",
+      "captcha",
+      "turnstile",
+      "cf-turnstile",
+      "csrf",
+      "honeypot",
+      "authenticity token",
+    ],
+    answerStrategy: "DO_NOT_ANSWER",
+  },
   {
     type: "LINKEDIN",
     textKeywords: ["linkedin"],
@@ -103,6 +163,7 @@ export const SEMANTIC_FIELD_CONCEPTS: SemanticFieldConcept[] = [
       "onde voce mora",
       "location",
       "city",
+      "cidade",
     ],
     answerStrategy: "PROFILE_VALUE",
   },

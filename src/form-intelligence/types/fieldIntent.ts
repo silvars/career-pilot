@@ -24,7 +24,14 @@ export type SemanticFieldType =
   | "EDUCATION"
   | "LANGUAGE"
   | "CUSTOM_QUESTION"
-  | "UNKNOWN";
+  | "UNKNOWN"
+  // FASE 5.5 hardening — real validation findings:
+  /** Nationality/citizenship/race/gender/religion/sexual orientation/disability/veteran status/generic legal-eligibility self-ID — never answered from the Profile, regardless of keyword match elsewhere. */
+  | "PROTECTED_OR_LEGAL"
+  /** CPF/passport/other government document numbers — the Profile deliberately never stores these. */
+  | "DOCUMENT_ID"
+  /** CAPTCHA/anti-bot and other framework-internal plumbing (hidden mirror inputs, CSRF tokens) — not a real question for the user at all. */
+  | "SYSTEM_FIELD";
 
 /**
  * How a field is expected to be answered later (SDD section 4) — decided

@@ -53,6 +53,19 @@ function matchSkillExperience(signals: WeightedSignal[]): { confidence: number; 
   return null;
 }
 
+/** Matches a literal CPF-shaped value (e.g. a placeholder showing the expected format "000.000.000-00") — FASE 5.5 hardening real finding. */
+const CPF_SHAPE_PATTERN = /\d{3}\.\d{3}\.\d{3}-\d{2}/;
+
+function matchDocumentIdShape(signals: WeightedSignal[]): { confidence: number; evidence: string[] } | null {
+  for (const signal of signals) {
+    if (!signal.text) continue;
+    if (CPF_SHAPE_PATTERN.test(signal.text)) {
+      return { confidence: signal.confidence, evidence: [`${signal.name}: matched CPF-shaped value pattern`] };
+    }
+  }
+  return null;
+}
+
 /** Normalizes a field's effective question text for later retrieval (SDD section 5) — strips trailing required-marker punctuation. */
 function normalizedQuestion(field: FormField): string {
   const text = field.label ?? field.ariaLabel ?? field.placeholder ?? field.name ?? field.id ?? "";
@@ -89,6 +102,18 @@ export function classifyField(field: FormField): FieldIntent {
     };
   }
 
+  const documentIdMatch = matchDocumentIdShape(signals);
+  if (documentIdMatch) {
+    return {
+      fieldId: field.id,
+      semanticType: "DOCUMENT_ID",
+      normalizedQuestion: normalizedQuestion(field),
+      confidence: documentIdMatch.confidence,
+      evidence: documentIdMatch.evidence,
+      answerStrategy: "USER_INPUT_REQUIRED",
+    };
+  }
+
   for (const concept of SEMANTIC_FIELD_CONCEPTS) {
     for (const signal of signals) {
       if (!signal.text) continue;
@@ -105,6 +130,22 @@ export function classifyField(field: FormField): FieldIntent {
         };
       }
     }
+  }
+
+  // FASE 5.5 hardening, real validation finding: a field with zero textual
+  // signal at all (no label/aria/placeholder/name/id) is almost always a
+  // hidden framework mirror input (React/combobox libraries), not a real
+  // question the user needs to see — distinct from CUSTOM_QUESTION/UNKNOWN,
+  // which both require at least *some* text to classify or fail to classify.
+  if (field.source === "NONE") {
+    return {
+      fieldId: field.id,
+      semanticType: "SYSTEM_FIELD",
+      normalizedQuestion: normalizedQuestion(field),
+      confidence: 0,
+      evidence: [],
+      answerStrategy: "DO_NOT_ANSWER",
+    };
   }
 
   const fallbackType: SemanticFieldType = isQuestionLike(field) ? "CUSTOM_QUESTION" : "UNKNOWN";

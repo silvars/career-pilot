@@ -181,9 +181,14 @@ describe("classifyField — Portuguese phrasing (diacritics-insensitive)", () =>
 });
 
 describe("classifyField — fallback cases", () => {
-  it("UNKNOWN when there is no usable signal at all", () => {
+  it("SYSTEM_FIELD when there is no usable signal at all (hidden framework mirror input, not a real question)", () => {
     const intent = classifyField(field({ label: undefined, source: "NONE" }));
-    expect(intent).toMatchObject({ semanticType: "UNKNOWN", answerStrategy: "DO_NOT_ANSWER", confidence: 0, evidence: [] });
+    expect(intent).toMatchObject({ semanticType: "SYSTEM_FIELD", answerStrategy: "DO_NOT_ANSWER", confidence: 0, evidence: [] });
+  });
+
+  it("UNKNOWN for a short, non-question label that matches no known concept", () => {
+    const intent = classifyField(field({ label: "Foo Bar" }));
+    expect(intent).toMatchObject({ semanticType: "UNKNOWN", answerStrategy: "DO_NOT_ANSWER", confidence: 0 });
   });
 
   it("CUSTOM_QUESTION for an unrecognized but clearly question-like field", () => {
@@ -195,7 +200,7 @@ describe("classifyField — fallback cases", () => {
 });
 
 describe("classifyField — never invents evidence", () => {
-  it("evidence is empty exactly when UNKNOWN", () => {
+  it("evidence is empty exactly when SYSTEM_FIELD", () => {
     const intent = classifyField(field({ source: "NONE" }));
     expect(intent.evidence).toEqual([]);
   });

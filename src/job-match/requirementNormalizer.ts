@@ -141,6 +141,17 @@ export const REQUIREMENT_CONCEPTS: RequirementConcept[] = [
     domain: "business",
     en: "business objectives",
     pt: "objetivos de negócio",
+    aliases: [
+      "business outcomes",
+      "measurable business outcomes",
+      "customer outcomes",
+      "resultados de negócio",
+      "resultado de negócio",
+      "resultados mensuráveis",
+      "foco em resultados",
+      "foco em resultado",
+      "foco genuíno em resultado",
+    ],
   },
   {
     canonical: "reliability",
@@ -173,6 +184,58 @@ export const REQUIREMENT_CONCEPTS: RequirementConcept[] = [
     en: "remote",
     pt: "trabalho remoto",
     aliases: ["remoto", "remota"],
+  },
+  // Added for the 4 documented false negatives (SDD "Local Semantic Retrieval"
+  // section 40.1 / FASE 5.5 hardening): these concepts previously had no
+  // entry at all, so bestAcrossVariants only ever tried the literal
+  // requirement text as its single query — these are strictly additive
+  // extra phrasings, never a scoring/threshold change.
+  {
+    canonical: "team_autonomy",
+    domain: "leadership",
+    en: "team autonomy",
+    pt: "autonomia do time",
+    aliases: [
+      "autonomy",
+      "autonomia",
+      "team ownership",
+      "ownership of decisions",
+      "supported rather than controlled",
+      "donos das decisões",
+    ],
+  },
+  {
+    canonical: "process_simplification",
+    domain: "leadership",
+    en: "reducing bureaucracy",
+    pt: "redução de burocracia",
+    aliases: [
+      "process simplification",
+      "simplificação de processos",
+      "simplificar processos",
+      "bureaucracy",
+      "burocracia",
+      "distributed decision making",
+      "tomada de decisão distribuída",
+      "remover bloqueios",
+      "bloqueios organizacionais",
+      "camadas de controle",
+    ],
+  },
+  {
+    canonical: "technical_proximity",
+    domain: "leadership",
+    en: "staying technically close to the team",
+    pt: "proximidade técnica com o time",
+    aliases: [
+      "hands-on technical leadership",
+      "liderança técnica próxima",
+      "technically close",
+      "close to the code",
+      "perto da tecnologia",
+      "próximo da tecnologia",
+      "manter-se próximo da tecnologia",
+    ],
   },
 ];
 

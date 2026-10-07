@@ -189,5 +189,45 @@ describe("RuleBasedMatchEngine against the real rodrigo-matos profile", () => {
       );
       expect(peopleManagement).toBeDefined();
     });
+
+    it("FASE 5.5 hardening: the real pt-BR phrasings for process-simplification/business-outcomes/technical-proximity are no longer false MISSING", async () => {
+      const { extracted } = buildExtractedJobPage(AKAD_INHIRE_RAW_MATERIALS);
+      const job = await analyzer.analyze(toJobPage(extracted));
+      const result = await engine.evaluate(job, profile);
+
+      const missingLabels = result.missingRequirements.map((r) => r.requirement);
+      expect(missingLabels.some((r) => /simplificar processos|bloqueios organizacionais/i.test(r))).toBe(false);
+      expect(missingLabels.some((r) => /resultado de neg[oó]cio/i.test(r))).toBe(false);
+      expect(missingLabels.some((r) => /pr[oó]ximo da tecnologia/i.test(r))).toBe(false);
+    });
+  });
+
+  describe("FASE 5.5 hardening — the 4 documented false negatives (SDD section 40.1 / FASE 4.1 benchmark)", () => {
+    // Real root cause (measured, not assumed): RequirementNormalizer had no
+    // concept entry at all for these 4 topics, so bestAcrossVariants only
+    // ever tried the literal requirement text as its single query — adding
+    // EN/PT-BR phrasings closer to the profile's actual wording is strictly
+    // additive (more query variants), no scoring/threshold/weight change.
+    const job = `Senior Engineering Manager
+
+Responsibilities:
+- Comfortable with autonomy and ownership
+- Focus on reducing bureaucracy and simplifying processes
+- Strong focus on measurable business outcomes
+- Stays technically close to the team
+`;
+
+    it("none of the 4 requirements are MISSING against the real profile (plain KeywordRetriever, no embeddings needed)", async () => {
+      const result = await evaluate(job);
+
+      const missingLabels = result.missingRequirements.map((r) => r.requirement);
+      expect(missingLabels).toEqual([]);
+
+      const evaluated = [...result.matchedRequirements, ...result.partialRequirements];
+      expect(evaluated.length).toBeGreaterThanOrEqual(4);
+      for (const requirement of evaluated) {
+        expect(requirement.evidence.length).toBeGreaterThan(0);
+      }
+    });
   });
 });
