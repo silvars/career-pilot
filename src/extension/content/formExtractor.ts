@@ -1,4 +1,5 @@
 import type { RawFormElement, RawFormMaterials, RawFormOption } from "../../form-intelligence/extraction/rawFormElement.js";
+import { mapElementsToFieldIds } from "../../form-intelligence/extraction/formFieldBuilder.js";
 
 /**
  * DOM-touching layer only (SDD "Form Intelligence" section 11: "Content
@@ -130,9 +131,48 @@ function toRawFormElement(element: HTMLInputElement | HTMLTextAreaElement | HTML
 }
 
 export function collectRawFormMaterials(): RawFormMaterials {
-  const elements = Array.from(document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
-    FIELD_SELECTOR
-  )).map(toRawFormElement);
+  const domElements = Array.from(
+    document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(FIELD_SELECTOR)
+  );
+  const elements = domElements.map(toRawFormElement);
+  const materials: RawFormMaterials = { url: window.location.href, elements };
 
-  return { url: window.location.href, elements };
+  rebuildElementCache(domElements, materials);
+
+  return materials;
+}
+
+/**
+ * `fieldId -> live Element(s)`, rebuilt every time the form is (re)extracted
+ * (EXTRACT_FORM/ANALYZE_FORM) — lives only in this content script's memory
+ * (SDD "Autofill" LACUNA 2 decision), never serialized across the messaging
+ * boundary. A radio group's `fieldId` maps to *every* member input (needed
+ * to select the one matching the chosen option); everything else maps to
+ * exactly one element. Reused later by the FASE 6.2 AutofillExecutor instead
+ * of re-discovering the DOM.
+ */
+let elementCache = new Map<string, Element[]>();
+
+function rebuildElementCache(
+  domElements: Array<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
+  materials: RawFormMaterials
+): void {
+  const fieldIds = mapElementsToFieldIds(materials);
+  const next = new Map<string, Element[]>();
+
+  fieldIds.forEach((fieldId, index) => {
+    if (!fieldId) {
+      return;
+    }
+    const existing = next.get(fieldId) ?? [];
+    existing.push(domElements[index]);
+    next.set(fieldId, existing);
+  });
+
+  elementCache = next;
+}
+
+/** Used by the FASE 6.2 AutofillExecutor — returns undefined if the field was never extracted or the page has since changed (caller must treat this as an individual failure, not re-discover the DOM). */
+export function getCachedElements(fieldId: string): Element[] | undefined {
+  return elementCache.get(fieldId);
 }

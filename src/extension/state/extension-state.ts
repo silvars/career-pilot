@@ -1,5 +1,7 @@
 import type { MatchResult } from "../../job-match/types.js";
 import type { FormIntelligenceResult } from "../../form-intelligence/types/formIntelligenceResult.js";
+import type { AutofillPlan } from "../../autofill/types/autofillAction.js";
+import type { AutofillResult } from "../../autofill/types/autofillResult.js";
 import type { ExtensionErrorPayload, PageContext } from "../messaging/messages.js";
 
 export type JobMatchStatus = "idle" | "analyzing" | "success" | "error";
@@ -20,6 +22,19 @@ export interface FormIntelligenceRuntimeState {
   error: ExtensionErrorPayload | null;
 }
 
+export type AutofillPlanStatus = "idle" | "building" | "success" | "error";
+export type AutofillExecutionStatus = "idle" | "executing" | "success" | "error";
+
+/** FASE 6.3 (Autofill Review UI + Execution) — plan and execution are tracked separately: building a plan never touches the DOM, only EXECUTE_AUTOFILL_PLAN does. */
+export interface AutofillRuntimeState {
+  planStatus: AutofillPlanStatus;
+  plan: AutofillPlan | null;
+  planError: ExtensionErrorPayload | null;
+  executionStatus: AutofillExecutionStatus;
+  executionResult: AutofillResult | null;
+  executionError: ExtensionErrorPayload | null;
+}
+
 /** FASE 3 only needs transient, in-memory state (SDD section 12) — nothing persisted. */
 export interface ExtensionState {
   initialized: boolean;
@@ -28,6 +43,7 @@ export interface ExtensionState {
   contentScriptConnected: boolean;
   jobMatch: JobMatchRuntimeState;
   formIntelligence: FormIntelligenceRuntimeState;
+  autofill: AutofillRuntimeState;
 }
 
 function createInitialJobMatchState(): JobMatchRuntimeState {
@@ -38,6 +54,17 @@ function createInitialFormIntelligenceState(): FormIntelligenceRuntimeState {
   return { status: "idle", result: null, error: null };
 }
 
+function createInitialAutofillState(): AutofillRuntimeState {
+  return {
+    planStatus: "idle",
+    plan: null,
+    planError: null,
+    executionStatus: "idle",
+    executionResult: null,
+    executionError: null,
+  };
+}
+
 export function createInitialState(): ExtensionState {
   return {
     initialized: false,
@@ -46,6 +73,7 @@ export function createInitialState(): ExtensionState {
     contentScriptConnected: false,
     jobMatch: createInitialJobMatchState(),
     formIntelligence: createInitialFormIntelligenceState(),
+    autofill: createInitialAutofillState(),
   };
 }
 
@@ -79,4 +107,37 @@ export function withFormIntelligenceResult(state: ExtensionState, result: FormIn
 
 export function withFormIntelligenceError(state: ExtensionState, error: ExtensionErrorPayload): ExtensionState {
   return { ...state, formIntelligence: { status: "error", result: null, error } };
+}
+
+export function withAutofillPlanStatus(state: ExtensionState, planStatus: AutofillPlanStatus): ExtensionState {
+  return { ...state, autofill: { ...state.autofill, planStatus } };
+}
+
+export function withAutofillPlan(state: ExtensionState, plan: AutofillPlan): ExtensionState {
+  return { ...state, autofill: { ...state.autofill, planStatus: "success", plan, planError: null } };
+}
+
+export function withAutofillPlanError(state: ExtensionState, error: ExtensionErrorPayload): ExtensionState {
+  return { ...state, autofill: { ...state.autofill, planStatus: "error", plan: null, planError: error } };
+}
+
+export function withAutofillExecutionStatus(
+  state: ExtensionState,
+  executionStatus: AutofillExecutionStatus
+): ExtensionState {
+  return { ...state, autofill: { ...state.autofill, executionStatus } };
+}
+
+export function withAutofillExecutionResult(state: ExtensionState, executionResult: AutofillResult): ExtensionState {
+  return {
+    ...state,
+    autofill: { ...state.autofill, executionStatus: "success", executionResult, executionError: null },
+  };
+}
+
+export function withAutofillExecutionError(state: ExtensionState, error: ExtensionErrorPayload): ExtensionState {
+  return {
+    ...state,
+    autofill: { ...state.autofill, executionStatus: "error", executionResult: null, executionError: error },
+  };
 }

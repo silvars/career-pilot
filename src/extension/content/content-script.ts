@@ -1,7 +1,6 @@
 import type { ExtensionMessage, ExtensionResponse, PageContext } from "../messaging/messages.js";
 import type { RawElement, RawPageMaterials } from "../job-extraction/types.js";
-import { collectRawFormMaterials } from "./formExtractor.js";
-
+import { collectRawFormMaterials } from "./formExtractor.js";import { executeAutofillPlan } from "./autofillExecutor.js";
 /**
  * FASE 3 shell only (SDD section 9): confirms the script is loaded and
  * reports basic page metadata. No job-description extraction, no form
@@ -66,6 +65,18 @@ chrome.runtime.onMessage.addListener(
       case "EXTRACT_FORM":
         sendResponse({ success: true, data: collectRawFormMaterials() });
         return false;
+      case "EXECUTE_AUTOFILL_PLAN":
+        // The only message that writes to the page (SDD "Autofill" section
+        // 5) — runs the FASE 6.2 engine unchanged on the plan as received.
+        executeAutofillPlan(message.plan)
+          .then((result) => sendResponse({ success: true, data: result }))
+          .catch((cause) =>
+            sendResponse({
+              success: false,
+              error: { code: "AUTOFILL_EXECUTION_FAILED", message: String(cause) },
+            })
+          );
+        return true; // keep the message channel open for the async sendResponse above
       default:
         // Not a message this content script handles — ignore (fail safely).
         return false;

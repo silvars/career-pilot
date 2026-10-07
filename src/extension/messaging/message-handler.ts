@@ -1,6 +1,7 @@
 import { ExtensionError, toErrorPayload } from "../errors.js";
 import { isExtensionMessage } from "./messages.js";
 import type { ExtensionMessage, ExtensionResponse } from "./messages.js";
+import type { AutofillPlan } from "../../autofill/types/autofillAction.js";
 
 export interface MessageHandlerContext {
   getExtensionStatus(): ExtensionResponse;
@@ -16,6 +17,10 @@ export interface MessageHandlerContext {
   /** FASE 5 (Form Intelligence): orchestrates extraction -> classification -> retrieval -> answers; read-only. */
   analyzeForm(): Promise<ExtensionResponse>;
   getFormIntelligence(): ExtensionResponse;
+  /** FASE 6.3 (Autofill Review UI + Execution): plan building is pure/local; execution relays to the Content Script's FASE 6.2 engine. */
+  buildAutofillPlan(): ExtensionResponse;
+  getAutofillPlan(): ExtensionResponse;
+  executeAutofillPlan(plan: AutofillPlan): Promise<ExtensionResponse>;
 }
 
 /**
@@ -62,6 +67,12 @@ export async function handleMessage(
         return await ctx.analyzeForm();
       case "GET_FORM_INTELLIGENCE":
         return ctx.getFormIntelligence();
+      case "BUILD_AUTOFILL_PLAN":
+        return ctx.buildAutofillPlan();
+      case "GET_AUTOFILL_PLAN":
+        return ctx.getAutofillPlan();
+      case "EXECUTE_AUTOFILL_PLAN":
+        return await ctx.executeAutofillPlan(message.plan);
     }
   } catch (cause) {
     return { success: false, error: toErrorPayload(cause) };

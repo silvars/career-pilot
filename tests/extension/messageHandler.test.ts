@@ -15,6 +15,9 @@ function makeCtx(overrides: Partial<MessageHandlerContext> = {}): MessageHandler
     runRetrievalBenchmark: async () => ({ success: true, data: null }),
     analyzeForm: async () => ({ success: true, data: null }),
     getFormIntelligence: () => ({ success: true, data: null }),
+    buildAutofillPlan: () => ({ success: true, data: null }),
+    getAutofillPlan: () => ({ success: true, data: null }),
+    executeAutofillPlan: async () => ({ success: true, data: null }),
     ...overrides,
   };
 }
@@ -128,6 +131,41 @@ describe("handleMessage", () => {
 
     expect(getFormIntelligence).toHaveBeenCalledTimes(1);
     expect(response).toEqual({ success: true, data: null });
+  });
+
+  it("routes BUILD_AUTOFILL_PLAN to ctx.buildAutofillPlan", async () => {
+    const buildAutofillPlan = vi.fn((): ExtensionResponse => ({ success: true, data: { actions: [] } }));
+    const ctx = makeCtx({ buildAutofillPlan });
+
+    const response = await handleMessage({ type: "BUILD_AUTOFILL_PLAN" }, ctx);
+
+    expect(buildAutofillPlan).toHaveBeenCalledTimes(1);
+    expect(response).toEqual({ success: true, data: { actions: [] } });
+  });
+
+  it("routes GET_AUTOFILL_PLAN to ctx.getAutofillPlan", async () => {
+    const getAutofillPlan = vi.fn((): ExtensionResponse => ({ success: true, data: null }));
+    const ctx = makeCtx({ getAutofillPlan });
+
+    const response = await handleMessage({ type: "GET_AUTOFILL_PLAN" }, ctx);
+
+    expect(getAutofillPlan).toHaveBeenCalledTimes(1);
+    expect(response).toEqual({ success: true, data: null });
+  });
+
+  it("routes EXECUTE_AUTOFILL_PLAN to ctx.executeAutofillPlan, passing the plan through unchanged", async () => {
+    const plan = {
+      actions: [{ fieldId: "fullName", action: "SET_VALUE" as const, value: "Rodrigo", confidence: 0.9, requiresReview: false }],
+      summary: { total: 1, fillable: 1, requiresReview: 0, skipped: 0 },
+    };
+    const executeAutofillPlan = vi.fn(async (): Promise<ExtensionResponse> => ({ success: true, data: { success: true, fields: [], summary: { attempted: 1, filled: 1, failed: 0, skipped: 0 } } }));
+    const ctx = makeCtx({ executeAutofillPlan });
+
+    const response = await handleMessage({ type: "EXECUTE_AUTOFILL_PLAN", plan }, ctx);
+
+    expect(executeAutofillPlan).toHaveBeenCalledTimes(1);
+    expect(executeAutofillPlan).toHaveBeenCalledWith(plan);
+    expect(response.success).toBe(true);
   });
 
   it("converts a thrown error from the context into an INTERNAL_ERROR response instead of crashing", async () => {

@@ -338,4 +338,84 @@ describe("service-worker", () => {
       expect(response.error?.code).toBe("CURRENT_TAB_NOT_AVAILABLE");
     });
   });
+
+  describe("FASE 6.3 — Autofill Review UI + Execution", () => {
+    it("BUILD_AUTOFILL_PLAN fails with NO_FORM_INTELLIGENCE_RESULT when no form has been analyzed yet", async () => {
+      const response = (await send({ type: "BUILD_AUTOFILL_PLAN" })) as { success: boolean; error?: { code: string } };
+      expect(response.success).toBe(false);
+      expect(response.error?.code).toBe("NO_FORM_INTELLIGENCE_RESULT");
+    });
+
+    it("builds a plan from the last ANALYZE_FORM result without re-extracting or reclassifying", async () => {
+      await send({ type: "ANALYZE_FORM" });
+      tabsSendMessageMock.mockClear();
+
+      const response = (await send({ type: "BUILD_AUTOFILL_PLAN" })) as {
+        success: boolean;
+        data?: { actions: unknown[]; summary: { total: number } };
+      };
+
+      expect(response.success).toBe(true);
+      expect(response.data?.summary.total).toBe(2);
+      // Building the plan must never touch the content script (no new extraction/classification).
+      expect(tabsSendMessageMock).not.toHaveBeenCalled();
+    });
+
+    it("stores the plan so a later GET_AUTOFILL_PLAN returns it without rebuilding", async () => {
+      await send({ type: "ANALYZE_FORM" });
+      await send({ type: "BUILD_AUTOFILL_PLAN" });
+
+      const response = (await send({ type: "GET_AUTOFILL_PLAN" })) as { success: boolean; data: unknown };
+      expect(response.success).toBe(true);
+      expect(response.data).not.toBeNull();
+    });
+
+    it("returns data: null from GET_AUTOFILL_PLAN before any plan has been built", async () => {
+      const response = (await send({ type: "GET_AUTOFILL_PLAN" })) as { success: boolean; data: unknown };
+      expect(response).toEqual({ success: true, data: null });
+    });
+
+    it("EXECUTE_AUTOFILL_PLAN relays the plan to the content script unchanged and returns its result", async () => {
+      const fakeResult = {
+        success: true,
+        fields: [{ fieldId: "email", success: true, expectedValue: "x@example.com", actualValue: "x@example.com" }],
+        summary: { attempted: 1, filled: 1, failed: 0, skipped: 0 },
+      };
+      tabsSendMessageMock.mockImplementationOnce(async (_tabId: number, message: { type: string }) => {
+        if (message.type === "EXECUTE_AUTOFILL_PLAN") {
+          return { success: true, data: fakeResult };
+        }
+        return { success: true, data: { alive: true } };
+      });
+
+      const plan = {
+        actions: [
+          { fieldId: "email", action: "SET_VALUE", value: "x@example.com", confidence: 0.9, requiresReview: false },
+        ],
+        summary: { total: 1, fillable: 1, requiresReview: 0, skipped: 0 },
+      };
+
+      const response = (await send({ type: "EXECUTE_AUTOFILL_PLAN", plan })) as {
+        success: boolean;
+        data?: unknown;
+      };
+
+      expect(response.success).toBe(true);
+      expect(response.data).toEqual(fakeResult);
+      expect(tabsSendMessageMock).toHaveBeenCalledWith(42, { type: "EXECUTE_AUTOFILL_PLAN", plan });
+    });
+
+    it("returns CONTENT_SCRIPT_UNAVAILABLE when the content script doesn't respond to EXECUTE_AUTOFILL_PLAN", async () => {
+      tabsSendMessageMock.mockRejectedValueOnce(new Error("Could not establish connection."));
+      const plan = { actions: [], summary: { total: 0, fillable: 0, requiresReview: 0, skipped: 0 } };
+
+      const response = (await send({ type: "EXECUTE_AUTOFILL_PLAN", plan })) as {
+        success: boolean;
+        error?: { code: string };
+      };
+
+      expect(response.success).toBe(false);
+      expect(response.error?.code).toBe("CONTENT_SCRIPT_UNAVAILABLE");
+    });
+  });
 });

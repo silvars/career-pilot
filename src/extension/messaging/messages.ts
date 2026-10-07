@@ -1,3 +1,5 @@
+import type { AutofillPlan } from "../../autofill/types/autofillAction.js";
+
 /** Basic metadata the Content Script reports about the current page (SDD section 9). */
 export interface PageContext {
   url: string;
@@ -26,7 +28,15 @@ export type ExtensionMessage =
   // selects or submits anything (see FORA DA FASE 5).
   | { type: "EXTRACT_FORM" }
   | { type: "ANALYZE_FORM" }
-  | { type: "GET_FORM_INTELLIGENCE" };
+  | { type: "GET_FORM_INTELLIGENCE" }
+  // FASE 6.1/6.2/6.3 (Autofill): BUILD_AUTOFILL_PLAN never touches the DOM
+  // (pure planning from the last FormIntelligenceResult); EXECUTE_AUTOFILL_PLAN
+  // is the only message that ever writes to the page, and only runs the
+  // already-reviewed subset of actions the Popup sends (never rebuilt or
+  // reclassified here).
+  | { type: "BUILD_AUTOFILL_PLAN" }
+  | { type: "GET_AUTOFILL_PLAN" }
+  | { type: "EXECUTE_AUTOFILL_PLAN"; plan: AutofillPlan };
 
 export type ExtensionMessageType = ExtensionMessage["type"];
 
@@ -50,7 +60,11 @@ export type ExtensionErrorCode =
   // FASE 5 (Form Intelligence):
   | "NO_FORM_CONTENT"
   | "FORM_EXTRACTION_FAILED"
-  | "FORM_ANALYSIS_FAILED";
+  | "FORM_ANALYSIS_FAILED"
+  // FASE 6.3 (Autofill Review UI + Execution):
+  | "NO_FORM_INTELLIGENCE_RESULT"
+  | "AUTOFILL_PLAN_FAILED"
+  | "AUTOFILL_EXECUTION_FAILED";
 
 export interface ExtensionErrorPayload {
   code: ExtensionErrorCode;
@@ -77,6 +91,9 @@ const MESSAGE_TYPES: ReadonlySet<string> = new Set([
   "EXTRACT_FORM",
   "ANALYZE_FORM",
   "GET_FORM_INTELLIGENCE",
+  "BUILD_AUTOFILL_PLAN",
+  "GET_AUTOFILL_PLAN",
+  "EXECUTE_AUTOFILL_PLAN",
 ] satisfies ExtensionMessageType[]);
 
 /** Unknown/malformed messages must fail safely (SDD section 11) rather than being cast blindly. */

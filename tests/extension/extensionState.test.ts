@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   createInitialState,
+  withAutofillExecutionError,
+  withAutofillExecutionResult,
+  withAutofillExecutionStatus,
+  withAutofillPlan,
+  withAutofillPlanError,
+  withAutofillPlanStatus,
   withFormIntelligenceError,
   withFormIntelligenceResult,
   withFormIntelligenceStatus,
@@ -12,6 +18,8 @@ import {
 } from "../../src/extension/state/extension-state.js";
 import type { MatchResult } from "../../src/job-match/types.js";
 import type { FormIntelligenceResult } from "../../src/form-intelligence/types/formIntelligenceResult.js";
+import type { AutofillPlan } from "../../src/autofill/types/autofillAction.js";
+import type { AutofillResult } from "../../src/autofill/types/autofillResult.js";
 
 const SAMPLE_RESULT: MatchResult = {
   score: 80,
@@ -40,8 +48,28 @@ const SAMPLE_FORM_RESULT: FormIntelligenceResult = {
   },
 };
 
+const INITIAL_AUTOFILL_STATE = {
+  planStatus: "idle",
+  plan: null,
+  planError: null,
+  executionStatus: "idle",
+  executionResult: null,
+  executionError: null,
+};
+
+const SAMPLE_PLAN: AutofillPlan = {
+  actions: [{ fieldId: "fullName", action: "SET_VALUE", value: "Rodrigo Matos", confidence: 0.9, requiresReview: false }],
+  summary: { total: 1, fillable: 1, requiresReview: 0, skipped: 0 },
+};
+
+const SAMPLE_EXECUTION_RESULT: AutofillResult = {
+  success: true,
+  fields: [{ fieldId: "fullName", success: true, expectedValue: "Rodrigo Matos", actualValue: "Rodrigo Matos" }],
+  summary: { attempted: 1, filled: 1, failed: 0, skipped: 0 },
+};
+
 describe("extension-state", () => {
-  it("starts with no profile, no page, not initialized and idle job match/form intelligence states", () => {
+  it("starts with no profile, no page, not initialized and idle job match/form intelligence/autofill states", () => {
     const state = createInitialState();
     expect(state).toEqual({
       initialized: false,
@@ -50,6 +78,7 @@ describe("extension-state", () => {
       contentScriptConnected: false,
       jobMatch: { status: "idle", result: null, error: null },
       formIntelligence: { status: "idle", result: null, error: null },
+      autofill: INITIAL_AUTOFILL_STATE,
     });
   });
 
@@ -64,6 +93,7 @@ describe("extension-state", () => {
       contentScriptConnected: false,
       jobMatch: { status: "idle", result: null, error: null },
       formIntelligence: { status: "idle", result: null, error: null },
+      autofill: INITIAL_AUTOFILL_STATE,
     });
     expect(before.initialized).toBe(false); // original untouched
   });
@@ -120,6 +150,61 @@ describe("extension-state", () => {
       status: "error",
       result: null,
       error: { code: "NO_JOB_CONTENT", message: "no content" },
+    });
+  });
+
+  it("withAutofillPlanStatus updates only the plan status, immutably", () => {
+    const state = withAutofillPlanStatus(createInitialState(), "building");
+    expect(state.autofill).toEqual({ ...INITIAL_AUTOFILL_STATE, planStatus: "building" });
+  });
+
+  it("withAutofillPlan sets planStatus success, stores the plan and clears any previous plan error", () => {
+    const withError = withAutofillPlanError(createInitialState(), {
+      code: "NO_FORM_INTELLIGENCE_RESULT",
+      message: "analyze first",
+    });
+    const state = withAutofillPlan(withError, SAMPLE_PLAN);
+    expect(state.autofill).toEqual({ ...INITIAL_AUTOFILL_STATE, planStatus: "success", plan: SAMPLE_PLAN });
+  });
+
+  it("withAutofillPlanError sets planStatus error, stores the error and clears any previous plan", () => {
+    const withPlan = withAutofillPlan(createInitialState(), SAMPLE_PLAN);
+    const state = withAutofillPlanError(withPlan, { code: "NO_FORM_INTELLIGENCE_RESULT", message: "analyze first" });
+    expect(state.autofill).toEqual({
+      ...INITIAL_AUTOFILL_STATE,
+      planStatus: "error",
+      planError: { code: "NO_FORM_INTELLIGENCE_RESULT", message: "analyze first" },
+    });
+  });
+
+  it("withAutofillExecutionStatus updates only the execution status, immutably", () => {
+    const state = withAutofillExecutionStatus(createInitialState(), "executing");
+    expect(state.autofill).toEqual({ ...INITIAL_AUTOFILL_STATE, executionStatus: "executing" });
+  });
+
+  it("withAutofillExecutionResult sets executionStatus success, stores the result and clears any previous execution error", () => {
+    const withError = withAutofillExecutionError(createInitialState(), {
+      code: "AUTOFILL_EXECUTION_FAILED",
+      message: "content script unavailable",
+    });
+    const state = withAutofillExecutionResult(withError, SAMPLE_EXECUTION_RESULT);
+    expect(state.autofill).toEqual({
+      ...INITIAL_AUTOFILL_STATE,
+      executionStatus: "success",
+      executionResult: SAMPLE_EXECUTION_RESULT,
+    });
+  });
+
+  it("withAutofillExecutionError sets executionStatus error, stores the error and clears any previous execution result", () => {
+    const withResult = withAutofillExecutionResult(createInitialState(), SAMPLE_EXECUTION_RESULT);
+    const state = withAutofillExecutionError(withResult, {
+      code: "AUTOFILL_EXECUTION_FAILED",
+      message: "content script unavailable",
+    });
+    expect(state.autofill).toEqual({
+      ...INITIAL_AUTOFILL_STATE,
+      executionStatus: "error",
+      executionError: { code: "AUTOFILL_EXECUTION_FAILED", message: "content script unavailable" },
     });
   });
 });

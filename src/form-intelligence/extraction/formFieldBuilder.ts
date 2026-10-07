@@ -169,3 +169,43 @@ export function buildFormFields(materials: RawFormMaterials): FormField[] {
 
   return fields;
 }
+
+/**
+ * For each element in `materials.elements` (same order), returns the
+ * `FormField.id` it belongs to, or `null` if `buildFormFields` would drop
+ * it (hidden/submit/button/reset/image/file). Lets a DOM-touching caller
+ * (the Content Script, FASE 6.2) build its own `fieldId -> Element[]`
+ * cache using the *exact* same id assignment `buildFormFields` uses —
+ * without duplicating that logic and risking it drifting out of sync.
+ */
+export function mapElementsToFieldIds(materials: RawFormMaterials): Array<string | null> {
+  const radioGroupMembers = new Map<string, RawFormElement[]>();
+  for (const raw of materials.elements) {
+    if (raw.tag === "INPUT" && (raw.inputType ?? "").toLowerCase() === "radio" && raw.name) {
+      const members = radioGroupMembers.get(raw.name) ?? [];
+      members.push(raw);
+      radioGroupMembers.set(raw.name, members);
+    }
+  }
+
+  const ids: Array<string | null> = [];
+  let fallbackIndex = 0;
+
+  for (const raw of materials.elements) {
+    const elementType = resolveElementType(raw);
+    if (!elementType) {
+      ids.push(null);
+      continue;
+    }
+
+    if (elementType === "RADIO" && raw.name) {
+      ids.push(raw.name);
+      continue;
+    }
+
+    ids.push(raw.id ?? raw.name ?? `field-${fallbackIndex}`);
+    fallbackIndex += 1;
+  }
+
+  return ids;
+}

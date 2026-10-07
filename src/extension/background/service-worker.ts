@@ -7,6 +7,8 @@ import { runRetrievalBenchmark } from "../../profile/retrievalBenchmark.js";
 import { RETRIEVAL_BENCHMARK_CASES } from "./retrievalBenchmarkCases.js";
 import { buildFormIntelligenceResult } from "../../form-intelligence/formIntelligence.js";
 import type { RawFormMaterials } from "../../form-intelligence/extraction/rawFormElement.js";
+import { buildAutofillPlan } from "../../autofill/index.js";
+import type { AutofillPlan, AutofillResult } from "../../autofill/index.js";
 import { RuleBasedJobAnalyzer, RuleBasedMatchEngine } from "../../job-match/index.js";
 import { ChromeProfileLoader } from "../profile/chromeProfileLoader.js";
 import { ChromeJobPageSource, isSupportedPageUrl } from "../job-extraction/index.js";
@@ -22,6 +24,12 @@ import { runEmbeddingSpike } from "./embeddingSpike.js";
 import type { EmbeddingSpikeReport } from "./embeddingSpike.js";
 import {
   createInitialState,
+  withAutofillExecutionError,
+  withAutofillExecutionResult,
+  withAutofillExecutionStatus,
+  withAutofillPlan,
+  withAutofillPlanError,
+  withAutofillPlanStatus,
   withFormIntelligenceError,
   withFormIntelligenceResult,
   withFormIntelligenceStatus,
@@ -254,6 +262,70 @@ function getFormIntelligence(): ExtensionResponse {
 }
 
 /**
+ * FASE 6.3 (Autofill Review UI + Execution): builds an AutofillPlan purely
+ * from the already-stored FormIntelligenceResult (fields/intents/answers
+ * from the last ANALYZE_FORM) — no new DOM access, no reclassification, no
+ * new answer generation. Never touches the DOM by itself.
+ */
+function buildAutofillPlanHandler(): ExtensionResponse {
+  const formResult = state.formIntelligence.result;
+  if (!formResult) {
+    const error = {
+      code: "NO_FORM_INTELLIGENCE_RESULT" as const,
+      message: "Analyze the form first (ANALYZE_FORM) before building an autofill plan.",
+    };
+    state = withAutofillPlanError(state, error);
+    return { success: false, error };
+  }
+
+  state = withAutofillPlanStatus(state, "building");
+  try {
+    const plan = buildAutofillPlan(formResult.fields, formResult.intents, formResult.answers);
+    state = withAutofillPlan(state, plan);
+    return { success: true, data: plan };
+  } catch (cause) {
+    const error = toErrorPayload(cause);
+    state = withAutofillPlanError(state, error);
+    return { success: false, error };
+  }
+}
+
+/** Returns the last built autofill plan, if any — does not build a new one. */
+function getAutofillPlan(): ExtensionResponse {
+  return { success: true, data: state.autofill.plan };
+}
+
+/**
+ * FASE 6.3: the ONLY handler that can ever cause a DOM write — relays the
+ * already-reviewed plan (only the actions the user selected in the Popup)
+ * to the Content Script, which runs it through the FASE 6.2 executor
+ * unchanged. No new field discovery, no reclassification, no new answers,
+ * no retries added here.
+ */
+async function executeAutofillPlanHandler(plan: AutofillPlan): Promise<ExtensionResponse> {
+  state = withAutofillExecutionStatus(state, "executing");
+  try {
+    const response = await relayToContentScript({ type: "EXECUTE_AUTOFILL_PLAN", plan });
+    if (!response.success) {
+      const error = response.error ?? {
+        code: "AUTOFILL_EXECUTION_FAILED" as const,
+        message: "Content script did not return an autofill result.",
+      };
+      state = withAutofillExecutionError(state, error);
+      return { success: false, error };
+    }
+
+    const result = response.data as AutofillResult;
+    state = withAutofillExecutionResult(state, result);
+    return { success: true, data: result };
+  } catch (cause) {
+    const error = toErrorPayload(cause);
+    state = withAutofillExecutionError(state, error);
+    return { success: false, error };
+  }
+}
+
+/**
  * FASE 4.1 (Local Semantic Retrieval) quality benchmark: runs the same
  * known false-negative cases (SDD/CAREER_PILOT_JOB_MATCH_CHROME_SDD.md
  * section 40.1) through a plain KeywordRetriever and through the real
@@ -368,6 +440,9 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         runRetrievalBenchmark: runRetrievalBenchmarkHandler,
         analyzeForm,
         getFormIntelligence,
+        buildAutofillPlan: buildAutofillPlanHandler,
+        getAutofillPlan,
+        executeAutofillPlan: executeAutofillPlanHandler,
       })
     )
     .then(sendResponse)
