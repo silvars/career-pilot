@@ -1,8 +1,8 @@
 # CareerPilot — Job Match + Chrome SDD
 
-**Status:** IMPLEMENTED (automated scope) — 2026-10-06. Manual Chrome validation (section 42) pending user confirmation.
+**Status:** CLOSED — 2026-10-07. Implemented, tested, manually validated in real Chrome against the real Akad/InHire posting (78/100 Good Match, score audited and explainable). See section 42 for the manual checklist and the two items not explicitly re-verified this round (covered by automated tests only).
 **Phase:** FASE 4 — Job Match + Chrome
-**Previous phases:** FASE 1 — Profile Reader ✅ | FASE 2 — Job Match (logic) ✅ | FASE 3 — Chrome Extension Shell ✅
+**Previous phases:** FASE 1 — Profile Reader ✅ | FASE 2 — Job Match (logic) ✅ | FASE 3 — Chrome Extension Shell ✅ | FASE 4 — Job Match + Chrome ✅
 **Next phase:** FASE 5 — Form Intelligence
 **Scope:** Real job-page reading, requirement extraction, Job Match execution and result UI
 
@@ -108,7 +108,7 @@ FASE 3 — Chrome Extension Shell
     ✅ CONCLUÍDA
           ↓
 FASE 4 — Job Match + Chrome
-    ⏳ THIS SDD
+    ✅ CONCLUÍDA
           ↓
 FASE 5 — Form Intelligence
     ⏳ FUTURE
@@ -1235,13 +1235,11 @@ over a color-only indicator.
 
 ## 40. Backlog
 
-Status geral: **implementado e testado em 2026-10-06** — `src/extension/job-extraction/`
-+ wiring em `service-worker.ts`/`content-script.ts`/`popup/`, 57 testes novos
-(170 no total do career-pilot). MATCH-CHROME-027 (Chrome real) permanece
-pendente de confirmação manual pelo usuário (mesmo padrão do EXT-014/FASE 3) —
-**precisa de uma nova rodada de validação manual**, já que a extração pt-BR e
-o `RequirementNormalizer` (abaixo) mudaram o resultado real da vaga Akad/InHire
-depois da última captura de tela.
+Status geral: **FASE 4 encerrada em 2026-10-07** — `src/extension/job-extraction/`
++ wiring em `service-worker.ts`/`content-script.ts`/`popup/` + `RequirementNormalizer`
+(pt-BR ↔ en), 198 testes no total do career-pilot. MATCH-CHROME-027 (Chrome
+real) **confirmado** pelo usuário: vaga real Akad/InHire analisada com sucesso,
+score 78/100 Good Match, auditado e explicável (seção 40.1).
 
 ### Page Source
 
@@ -1286,7 +1284,7 @@ depois da última captura de tela.
 - [x] MATCH-CHROME-024 — untrusted page-content handling — nenhum `eval`, só `JSON.parse`; `popup.ts` usa só `textContent`/`createElement`, nunca `innerHTML`
 - [x] MATCH-CHROME-025 — regression tests — todos os 113 testes de FASE 1-3 continuam passando, inalterados
 - [x] MATCH-CHROME-026 — representative fixtures — `tests/fixtures/pages/` (Akad/InHire sanitizada, JSON-LD, DOM genérico)
-- [ ] MATCH-CHROME-027 — manual Chrome validation — **pendente**, requer confirmação do usuário (seção 42)
+- [x] MATCH-CHROME-027 — manual Chrome validation — **confirmado pelo usuário** (2026-10-07): vaga real Akad/InHire analisada com sucesso, score 78/100 Good Match, matched/partial/missing auditados e explicáveis (seção 40.1)
 - [x] MATCH-CHROME-028 — documentation — `README.md` atualizado (ver seção 40.1)
 
 ### PT-BR ↔ EN Requirement Normalization (real finding, 2026-10-06)
@@ -1461,6 +1459,60 @@ depois da última captura de tela.
     `MISSING` nessa vaga porque o próprio perfil não menciona preferência de
     modelo de trabalho — isso é correto, não é uma lacuna do normalizador.
 
+- **Diagnóstico final de qualidade (2026-10-06, pós-validação manual real
+  no Chrome — 78/100 Good Match).** Sem alterar score, sem novos conceitos no
+  `RequirementNormalizer`, sem iniciar FASE 5.
+
+  **1. Requisito "duplicado" ("Traduzir..." / "Remover objetivos de negócio em
+  metas claras e mensuráveis para o time")** — rastreado
+  `ExtractedJobPage` → `section` → `JobRequirements` → `MatchRequirement`:
+  são dois elementos `LI` **distintos e consecutivos** no DOM real da vaga
+  (confirmado por duas capturas independentes da página real: um
+  `fetch_webpage` nesta sessão e, agora, a própria validação manual no
+  Chrome do usuário). `groupElementsIntoSections`/`extractSections` não têm
+  nenhuma lógica de transformação de texto capaz de trocar uma palavra
+  ("Traduzir"→"Remover") — só concatenam/filtram linhas já prontas — logo é
+  estruturalmente impossível que o pipeline tenha *gerado* essa duplicata.
+  Conclusão: **não é bug de extração/segmentação**; é conteúdo real da vaga
+  (aparenta ser um erro de copiar-e-colar de quem escreveu o anúncio). A
+  fixture `AKAD_INHIRE_RAW_MATERIALS` havia **excluído esse bullet
+  erroneamente** numa sessão anterior, sob a suposição equivocada de que era
+  artefato da ferramenta de busca — corrigido agora, bullet restaurado.
+  Ambas as frases são avaliadas de forma independente (`PARTIAL`, score 50
+  cada), como esperado — nenhum estado compartilhado entre `MatchRequirement`s.
+
+  **2. Auditoria dos 4 MISSING** (query = texto original completo em todos os
+  casos, pois nenhum deles ativa um conceito do `RequirementNormalizer`;
+  threshold: MATCHED ≥ 0.85, PARTIAL ≥ 0.30, retriever descarta abaixo de 0.15):
+
+  | Requisito (pt-BR original) | Melhor chunk do perfil | Score | Motivo final |
+  |---|---|---|---|
+  | "Autonomia para atuar em contextos de maior complexidade e ambiguidade, sem depender de supervisão constante" | `skills/leadership.md` ("### Autonomy — Teams own their technical and product decisions...") | 0.193 | **(B)** evidência real existe (seção "Autonomy" explícita), mas a frase pt-BR longa não tem conceito curado e dilui a cobertura léxica |
+  | "Habilidade para remover bloqueios organizacionais e simplificar processos, em vez de adicionar camadas de controle" | `skills/leadership.md` ("Avoid: bureaucracy for its own sake... Prefer:... distributed decision making") | 0.187 | **(B)** evidência real e quase verbatim ("Avoid: bureaucracy"), sem conceito curado conectando "remover bloqueios"/"simplificar processos" ↔ "avoid bureaucracy" |
+  | "Foco genuíno em resultado de negócio e de cliente — não apenas em execução de tarefas ou volume de entregas" | `achievements/leadership-impact.md` ("I build engineering organizations... that solve complex business problems and produce measurable outcomes") | 0.091 (abaixo do corte do retriever) | **(B)** evidência real mas fraseada como "outcomes", não "objetivos de negócio" (termo curado existente não cobre essa variação) |
+  | "Vontade de se manter próximo da tecnologia, mesmo sem estar no dia a dia da implementação" | `identity/personal.md` (chunks de educação/idiomas — irrelevantes) | 0.085 (abaixo do corte do retriever) | **(B)** evidência real e forte existe em outro chunk que o retriever não retornou no top-3 para essa query (`skills/leadership.md`: "I stay technically close enough to challenge architecture, understand production problems and support engineers..."), por ausência de termos compartilhados |
+
+  **Conclusão da auditoria: os 4 MISSING são falsos negativos de
+  retrieval/curadoria (categoria B), não ausência real de evidência
+  (categoria A).** Em 3 dos 4 casos o trecho exato do perfil que caracteriza
+  a evidência foi identificado nominalmente. Nenhum foi convertido em match
+  nesta rodada — por decisão explícita do usuário de não adicionar novos
+  conceitos ao `RequirementNormalizer` agora. Ficam registrados como backlog
+  para uma decisão futura deliberada (candidatos a conceito: `autonomy`,
+  `remove_bureaucracy`/`process_simplification`, `business_outcomes`,
+  `technical_proximity`).
+
+  **3/4. Integridade**: nenhuma alteração de score, nenhum sinônimo
+  adicionado só para inflar resultado, nenhum match sem evidência rastreável
+  — toda a cadeia `Requirement → normalized concept/query → retrieved
+  profile evidence → status → score` permanece auditável (ver tabela acima).
+
+  **5. Testes**: nenhuma regressão de código encontrada — a única correção
+  foi de dado (fixture), não de lógica; os 198 testes existentes já cobrem
+  o comportamento (nenhum teste novo adicionado, conforme instrução de só
+  adicionar se houver regressão real). `npm run typecheck`, `npm test` e
+  `npm run build` executados e verdes (198/198).
+
 ---
 
 ## 41. Definition of Done — Automated
@@ -1534,18 +1586,18 @@ depois da última captura de tela.
 
 The user must confirm:
 
-- [ ] CareerPilot loads in Chrome.
-- [ ] A real vacancy can be analyzed.
-- [ ] `Analyze Job` starts analysis.
-- [ ] Current-page extraction works.
-- [ ] The Akad/InHire vacancy can be analyzed or a documented extraction limitation is identified.
-- [ ] Match result is displayed.
-- [ ] Score is plausible and traceable.
-- [ ] Matched/gap requirements are visible.
-- [ ] No application form field is changed.
-- [ ] No submission occurs.
-- [ ] Unsupported pages fail safely.
-- [ ] Service Worker restart does not corrupt state.
+- [x] CareerPilot loads in Chrome.
+- [x] A real vacancy can be analyzed.
+- [x] `Analyze Job` starts analysis.
+- [x] Current-page extraction works.
+- [x] The Akad/InHire vacancy can be analyzed or a documented extraction limitation is identified.
+- [x] Match result is displayed.
+- [x] Score is plausible and traceable (audited end-to-end 2026-10-06: every MATCHED/PARTIAL/MISSING item traced to its retriever query, chunk and score).
+- [x] Matched/gap requirements are visible.
+- [x] No application form field is changed (true by construction — FASE 4 code never touches form elements; also observed across every manual run).
+- [x] No submission occurs (same — no code path submits forms).
+- [ ] Unsupported pages fail safely — **not re-verified manually this round**; covered by automated tests only (`UNSUPPORTED_PAGE` handling, `tests/extension/serviceWorker.test.ts`).
+- [ ] Service Worker restart does not corrupt state — **not re-verified manually this round**; covered by automated tests only (cold-start `ensureInitialized()` dedup, FASE 3).
 
 ---
 

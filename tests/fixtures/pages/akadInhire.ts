@@ -11,10 +11,14 @@ import type { RawPageMaterials } from "../../../src/extension/job-extraction/typ
  * false 100/100 "Strong Match" from title/seniority alone — see
  * CAREER_PILOT_JOB_MATCH_CHROME_SDD.md section 40.1).
  *
- * One bullet ("Remover objetivos de negócio em metas claras e mensuráveis
- * para o time") was dropped from the source re-fetch: it duplicated the
- * preceding bullet with only "Traduzir" swapped for "Remover" and reads as a
- * text-extraction artifact, not real distinct page content.
+ * Correction (2026-10-06, manual Chrome validation): an earlier version of
+ * this fixture dropped the bullet "Remover objetivos de negócio em metas
+ * claras e mensuráveis para o time", assuming it was a text-extraction
+ * artifact (it duplicates the preceding bullet with only "Traduzir" swapped
+ * for "Remover"). The real Chrome extension, run against the live page,
+ * showed this exact bullet as a distinct requirement — confirming it is
+ * genuine (if redundant) content really present on the page, not an
+ * extraction bug. Restored below; see section 40.1 for the full trace.
  */
 export const AKAD_INHIRE_RAW_MATERIALS: RawPageMaterials = {
   url: "https://akadseguros.inhire.app/vagas/96e4f480-c681-4e55-aa1c-7156a67a1aee/engineering-manager",
@@ -84,6 +88,7 @@ export const AKAD_INHIRE_RAW_MATERIALS: RawPageMaterials = {
       text: "• Construir um ambiente de alta performance, autonomia e segurança psicológica dentro do squad",
     },
     { tag: "LI", text: "• Traduzir objetivos de negócio em metas claras e mensuráveis para o time" },
+    { tag: "LI", text: "• Remover objetivos de negócio em metas claras e mensuráveis para o time" },
     {
       tag: "LI",
       text: "• Trabalhar em parceria contínua com Product Managers, equilibrando impacto de negócio e capacidade de entrega",
