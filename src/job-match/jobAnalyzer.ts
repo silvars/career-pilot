@@ -14,12 +14,14 @@ const REQUIRED_HEADERS = [
   "minimum qualifications",
   "basic qualifications",
   "qualifications",
+  "valued skills and experience",
   // pt-BR (real finding, 2026-10-06 — Akad/InHire job posting):
   "requisitos",
   "requisitos obrigatorios",
   "pre-requisitos",
   "o que voce precisa ter",
   "o que buscamos",
+  "o que esperamos",
   "qualificacoes necessarias",
 ];
 
@@ -31,6 +33,7 @@ const PREFERRED_HEADERS = [
   "bonus",
   // pt-BR (real finding, 2026-10-06):
   "diferenciais",
+  "diferencial",
   "voce se destacara se tiver",
   "desejavel",
   "sera um diferencial",
@@ -46,6 +49,7 @@ const RESPONSIBILITY_HEADERS = [
   "suas responsabilidades",
   "o que voce vai fazer",
   "atividades",
+  "desafios",
 ];
 
 const OTHER_KNOWN_HEADERS = [
@@ -54,6 +58,7 @@ const OTHER_KNOWN_HEADERS = [
   "about us",
   "about the company",
   "about the role",
+  "what we offer",
   "overview",
   "how to apply",
   "equal opportunity",
@@ -126,8 +131,12 @@ function normalizeHeaderLine(line: string): string {
     .replace(/[:?!.\u2026]+\s*$/, "");
 }
 
+// Substring match, not just prefix: real headers vary a lot ("Key
+// responsibilities", "Suas atividades como CSixer") and the curated list
+// can't enumerate every company's wording — the <=60-char "looks like a
+// heading, not a paragraph" guard at the call site keeps this bounded.
 function matchesAnyHeader(normalized: string, headers: string[]): boolean {
-  return headers.some((header) => normalized === header || normalized.startsWith(header));
+  return headers.some((header) => normalized.includes(header));
 }
 
 function stripBulletMarker(line: string): string {
@@ -186,7 +195,7 @@ function extractSections(text: string): {
         bucket = "responsibilities";
         continue;
       }
-      if (matchesAnyHeader(normalized, OTHER_KNOWN_HEADERS)) {
+      if (matchesAnyHeader(normalized, OTHER_KNOWN_HEADERS) || normalized.startsWith("about ")) {
         bucket = null;
         continue;
       }
