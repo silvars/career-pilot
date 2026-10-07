@@ -32,6 +32,24 @@
     <button id="analyze-job" type="button">Analyze Job</button>
     <button id="check-connection" type="button">Check connection</button>
 
+    <section>
+      <h2>Form Intelligence</h2>
+      <p id="form-status">Click "Analyze Form" to detect fields on this page</p>
+      <p id="form-summary"></p>
+      <button id="analyze-form" type="button">Analyze Form</button>
+      <ul id="form-fields"></ul>
+    </section>
+
+    <section>
+      <h2>Debug — FASE 4.1 Retrieval Benchmark</h2>
+      <p>
+        Validation only, not part of the normal flow: compares KeywordRetriever vs HybridRetriever
+        (Recall@3, Recall@5, MRR) on the known semantic-retrieval test cases.
+      </p>
+      <button id="run-retrieval-benchmark" type="button">Run Retrieval Benchmark</button>
+      <pre id="retrieval-benchmark-output"></pre>
+    </section>
+
     <script src="popup.js"></script>
   </body>
 </html>

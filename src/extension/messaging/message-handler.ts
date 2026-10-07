@@ -8,6 +8,14 @@ export interface MessageHandlerContext {
   relayToContentScript(message: ExtensionMessage): Promise<ExtensionResponse>;
   analyzeCurrentJob(): Promise<ExtensionResponse>;
   getMatchResult(): ExtensionResponse;
+  /** FASE 4.1-A/B viability spikes ONLY — remove once the decision gate is resolved. */
+  runEmbeddingSpike(): Promise<ExtensionResponse>;
+  runOffscreenEmbeddingSpike(): Promise<ExtensionResponse>;
+  /** FASE 4.1 (Local Semantic Retrieval): keyword-only vs hybrid retrieval quality comparison. */
+  runRetrievalBenchmark(): Promise<ExtensionResponse>;
+  /** FASE 5 (Form Intelligence): orchestrates extraction -> classification -> retrieval -> answers; read-only. */
+  analyzeForm(): Promise<ExtensionResponse>;
+  getFormIntelligence(): ExtensionResponse;
 }
 
 /**
@@ -38,11 +46,22 @@ export async function handleMessage(
       case "PING_CONTENT_SCRIPT":
       case "GET_PAGE_CONTEXT":
       case "EXTRACT_JOB_PAGE":
+      case "EXTRACT_FORM":
         return await ctx.relayToContentScript(message);
       case "ANALYZE_CURRENT_JOB":
         return await ctx.analyzeCurrentJob();
       case "GET_MATCH_RESULT":
         return ctx.getMatchResult();
+      case "RUN_EMBEDDING_SPIKE":
+        return await ctx.runEmbeddingSpike();
+      case "RUN_OFFSCREEN_EMBEDDING_SPIKE":
+        return await ctx.runOffscreenEmbeddingSpike();
+      case "RUN_RETRIEVAL_BENCHMARK":
+        return await ctx.runRetrievalBenchmark();
+      case "ANALYZE_FORM":
+        return await ctx.analyzeForm();
+      case "GET_FORM_INTELLIGENCE":
+        return ctx.getFormIntelligence();
     }
   } catch (cause) {
     return { success: false, error: toErrorPayload(cause) };

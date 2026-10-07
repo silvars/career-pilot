@@ -49,8 +49,8 @@ Validated against the real `career-pilot` repository state before implementation
   `favIconUrl`. `"permissions": ["activeTab"]` was added back to
   `manifest.json` for that reason (least-privilege fix: no install-time
   warning, scoped to the current tab, activated by the user opening the
-  popup). See `CAREER_PILOT_JOB_MATCH_CHROME_SDD.md` section 1.1 for the
-  full incident.
+  popup). See `CAREER_PILOT_JOB_MATCH_CHROME_SDD.md` (same directory) section
+  1.1 for the full incident.
 - **`ChromeProfileLoader`**: `FsProfileLoader` (FASE 1) uses `node:fs`, which
   does not exist in a service worker. A new `ChromeProfileLoader` —
   implementing the existing `ProfileLoader` interface via

@@ -10,6 +10,7 @@ import type { RawPageMaterials } from "../../../src/extension/job-extraction/typ
  * cause of a real bug (job analyzed as near-empty, Match Engine returned a
  * false 100/100 "Strong Match" from title/seniority alone — see
  * CAREER_PILOT_JOB_MATCH_CHROME_SDD.md section 40.1).
+ * (spec now lives under SDD/).
  *
  * Correction (2026-10-06, manual Chrome validation): an earlier version of
  * this fixture dropped the bullet "Remover objetivos de negócio em metas

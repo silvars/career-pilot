@@ -10,6 +10,11 @@ function makeCtx(overrides: Partial<MessageHandlerContext> = {}): MessageHandler
     relayToContentScript: async () => ({ success: true, data: { alive: true } }),
     analyzeCurrentJob: async () => ({ success: true, data: null }),
     getMatchResult: () => ({ success: true, data: null }),
+    runEmbeddingSpike: async () => ({ success: true, data: null }),
+    runOffscreenEmbeddingSpike: async () => ({ success: true, data: null }),
+    runRetrievalBenchmark: async () => ({ success: true, data: null }),
+    analyzeForm: async () => ({ success: true, data: null }),
+    getFormIntelligence: () => ({ success: true, data: null }),
     ...overrides,
   };
 }
@@ -37,18 +42,20 @@ describe("handleMessage", () => {
     expect(response).toEqual({ success: true, data: { id: "rodrigo-matos", name: "Rodrigo Matos Silva" } });
   });
 
-  it("routes PING_CONTENT_SCRIPT, GET_PAGE_CONTEXT and EXTRACT_JOB_PAGE to ctx.relayToContentScript", async () => {
+  it("routes PING_CONTENT_SCRIPT, GET_PAGE_CONTEXT, EXTRACT_JOB_PAGE and EXTRACT_FORM to ctx.relayToContentScript", async () => {
     const relay = vi.fn(async (): Promise<ExtensionResponse> => ({ success: true, data: { alive: true } }));
     const ctx = makeCtx({ relayToContentScript: relay });
 
     await handleMessage({ type: "PING_CONTENT_SCRIPT" }, ctx);
     await handleMessage({ type: "GET_PAGE_CONTEXT" }, ctx);
     await handleMessage({ type: "EXTRACT_JOB_PAGE" }, ctx);
+    await handleMessage({ type: "EXTRACT_FORM" }, ctx);
 
-    expect(relay).toHaveBeenCalledTimes(3);
+    expect(relay).toHaveBeenCalledTimes(4);
     expect(relay).toHaveBeenNthCalledWith(1, { type: "PING_CONTENT_SCRIPT" });
     expect(relay).toHaveBeenNthCalledWith(2, { type: "GET_PAGE_CONTEXT" });
     expect(relay).toHaveBeenNthCalledWith(3, { type: "EXTRACT_JOB_PAGE" });
+    expect(relay).toHaveBeenNthCalledWith(4, { type: "EXTRACT_FORM" });
   });
 
   it("routes ANALYZE_CURRENT_JOB to ctx.analyzeCurrentJob", async () => {
@@ -68,6 +75,58 @@ describe("handleMessage", () => {
     const response = await handleMessage({ type: "GET_MATCH_RESULT" }, ctx);
 
     expect(getResult).toHaveBeenCalledTimes(1);
+    expect(response).toEqual({ success: true, data: null });
+  });
+
+  it("routes RUN_EMBEDDING_SPIKE to ctx.runEmbeddingSpike (FASE 4.1-A spike only)", async () => {
+    const spike = vi.fn(async (): Promise<ExtensionResponse> => ({ success: true, data: { overall: "VIABLE" } }));
+    const ctx = makeCtx({ runEmbeddingSpike: spike });
+
+    const response = await handleMessage({ type: "RUN_EMBEDDING_SPIKE" }, ctx);
+
+    expect(spike).toHaveBeenCalledTimes(1);
+    expect(response).toEqual({ success: true, data: { overall: "VIABLE" } });
+  });
+
+  it("routes RUN_OFFSCREEN_EMBEDDING_SPIKE to ctx.runOffscreenEmbeddingSpike (FASE 4.1-B spike only)", async () => {
+    const spike = vi.fn(async (): Promise<ExtensionResponse> => ({ success: true, data: { overall: "VIABLE" } }));
+    const ctx = makeCtx({ runOffscreenEmbeddingSpike: spike });
+
+    const response = await handleMessage({ type: "RUN_OFFSCREEN_EMBEDDING_SPIKE" }, ctx);
+
+    expect(spike).toHaveBeenCalledTimes(1);
+    expect(response).toEqual({ success: true, data: { overall: "VIABLE" } });
+  });
+
+  it("routes RUN_RETRIEVAL_BENCHMARK to ctx.runRetrievalBenchmark", async () => {
+    const benchmark = vi.fn(
+      async (): Promise<ExtensionResponse> => ({ success: true, data: { recallAt3: 1 } })
+    );
+    const ctx = makeCtx({ runRetrievalBenchmark: benchmark });
+
+    const response = await handleMessage({ type: "RUN_RETRIEVAL_BENCHMARK" }, ctx);
+
+    expect(benchmark).toHaveBeenCalledTimes(1);
+    expect(response).toEqual({ success: true, data: { recallAt3: 1 } });
+  });
+
+  it("routes ANALYZE_FORM to ctx.analyzeForm", async () => {
+    const analyzeForm = vi.fn(async (): Promise<ExtensionResponse> => ({ success: true, data: { summary: {} } }));
+    const ctx = makeCtx({ analyzeForm });
+
+    const response = await handleMessage({ type: "ANALYZE_FORM" }, ctx);
+
+    expect(analyzeForm).toHaveBeenCalledTimes(1);
+    expect(response).toEqual({ success: true, data: { summary: {} } });
+  });
+
+  it("routes GET_FORM_INTELLIGENCE to ctx.getFormIntelligence", async () => {
+    const getFormIntelligence = vi.fn((): ExtensionResponse => ({ success: true, data: null }));
+    const ctx = makeCtx({ getFormIntelligence });
+
+    const response = await handleMessage({ type: "GET_FORM_INTELLIGENCE" }, ctx);
+
+    expect(getFormIntelligence).toHaveBeenCalledTimes(1);
     expect(response).toEqual({ success: true, data: null });
   });
 

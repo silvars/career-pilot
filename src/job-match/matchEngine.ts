@@ -1,7 +1,8 @@
 import { ProfileError } from "../profile/errors.js";
 import { buildIndex } from "../profile/chunker.js";
 import { KeywordRetriever } from "../profile/retriever.js";
-import type { Profile, RetrievalResult } from "../profile/types.js";
+import type { ProfileRetriever } from "../profile/retriever.js";
+import type { Profile, ProfileChunk, RetrievalResult } from "../profile/types.js";
 import { JobMatchError } from "./errors.js";
 import { normalizeRequirement } from "./requirementDictionary.js";
 import { normalizeForRetrieval } from "./requirementNormalizer.js";
@@ -58,7 +59,7 @@ function toEvidence(result: RetrievalResult): MatchEvidence {
 }
 
 async function searchSafely(
-  retriever: KeywordRetriever,
+  retriever: ProfileRetriever,
   query: string
 ): Promise<RetrievalResult[]> {
   try {
@@ -77,7 +78,7 @@ async function searchSafely(
 // worse than searching the original text alone (SDD rule: no scoring/weight
 // changes, only more chances to find a real match across languages).
 async function bestAcrossVariants(
-  retriever: KeywordRetriever,
+  retriever: ProfileRetriever,
   variants: string[]
 ): Promise<RetrievalResult[]> {
   let best: RetrievalResult[] = [];
@@ -97,7 +98,7 @@ async function bestAcrossVariants(
 async function evaluateAgainstProfile(
   requirementText: string,
   type: RequirementType,
-  retriever: KeywordRetriever
+  retriever: ProfileRetriever
 ): Promise<MatchRequirement> {
   const { canonicalQuery } = normalizeRequirement(requirementText);
   const { queryVariants } = normalizeForRetrieval(requirementText);
@@ -124,7 +125,7 @@ async function evaluateAgainstProfile(
  */
 async function evaluateLanguage(
   requirementText: string,
-  retriever: KeywordRetriever
+  retriever: ProfileRetriever
 ): Promise<MatchRequirement> {
   const languageName = LANGUAGE_NAMES.find((language) =>
     new RegExp(`\\b${language}\\b`, "i").test(requirementText)
@@ -209,8 +210,19 @@ function recommendationFor(score: number): MatchRecommendation {
  * V1 rule-based match engine (SDD section 27). Reuses the existing
  * ProfileRetriever/KeywordRetriever instead of creating a second knowledge
  * mechanism (SDD section 3).
+ *
+ * The retriever itself is pluggable (constructor injection, defaulting to
+ * plain KeywordRetriever) so the extension layer can supply a
+ * HybridRetriever (KeywordRetriever + SemanticRetriever) without this class
+ * knowing anything about embeddings/Chrome — scoring, weights and
+ * thresholds below are completely unchanged either way ("Local Semantic
+ * Retrieval" SDD section 3.4).
  */
+export type RetrieverFactory = (chunks: ProfileChunk[]) => ProfileRetriever;
+
 export class RuleBasedMatchEngine implements MatchEngine {
+  constructor(private readonly retrieverFactory: RetrieverFactory = (chunks) => new KeywordRetriever(chunks)) {}
+
   async evaluate(
     job: JobRequirements,
     profile: Profile,
@@ -224,7 +236,7 @@ export class RuleBasedMatchEngine implements MatchEngine {
           `Active profile "${profile.id}" has no indexed content.`
         );
       }
-      const retriever = new KeywordRetriever(chunks);
+      const retriever = this.retrieverFactory(chunks);
 
       const matchedRequirements: MatchRequirement[] = [];
       const partialRequirements: MatchRequirement[] = [];

@@ -14,6 +14,8 @@ await build({
     "service-worker": path.join(root, "src/extension/background/service-worker.ts"),
     "content-script": path.join(root, "src/extension/content/content-script.ts"),
     popup: path.join(root, "src/extension/popup/popup.ts"),
+    // FASE 4.1-B spike ONLY — remove alongside src/extension/offscreen/ if abandoned.
+    offscreen: path.join(root, "src/extension/offscreen/offscreen.ts"),
   },
   bundle: true,
   outdir: distDir,
@@ -27,6 +29,20 @@ await build({
 cpSync(path.join(root, "manifest.json"), path.join(distDir, "manifest.json"));
 cpSync(path.join(root, "src/extension/popup/popup.html"), path.join(distDir, "popup.html"));
 cpSync(path.join(root, "src/extension/popup/popup.css"), path.join(distDir, "popup.css"));
+// FASE 4.1-B spike ONLY.
+cpSync(path.join(root, "src/extension/offscreen/offscreen.html"), path.join(distDir, "offscreen.html"));
+
+// FASE 4.1-A/B spike ONLY: vendor the ONNX WASM runtime factory locally —
+// @huggingface/transformers defaults this to a remote jsdelivr CDN URL,
+// which MV3's default CSP (script-src 'self') blocks outright (real finding,
+// 2026-10-07). See embeddingSpike.ts's configureLocalWasmRuntime().
+const wasmFactoryBasename = "ort-wasm-simd-threaded.asyncify";
+for (const ext of ["wasm", "mjs"]) {
+  cpSync(
+    path.join(root, "node_modules/onnxruntime-web/dist", `${wasmFactoryBasename}.${ext}`),
+    path.join(distDir, `${wasmFactoryBasename}.${ext}`)
+  );
+}
 
 // The extension can only fetch() files packaged inside its own dist/ output
 // (SDD section 16) — the vendored profile is copied in, not read from the

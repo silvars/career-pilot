@@ -8,9 +8,11 @@ Local-first career assistant. Currently implements:
   between a job posting's text and the active profile.
 - **Chrome Extension Shell** (`src/extension/`) — Manifest V3 shell (service
   worker, content script, popup) wiring the two layers above into a loadable
-  Chrome extension. See `CAREER_PILOT_EXTENSION_SHELL_SDD.md` (FASE 3 — shell
-  only) and `CAREER_PILOT_JOB_MATCH_CHROME_SDD.md` (FASE 4 — real job-page
-  reading, extraction and the "Analyze Job" flow) for the full specs.
+  Chrome extension. See `SDD/CAREER_PILOT_EXTENSION_SHELL_SDD.md` (FASE 3 —
+  shell only) and `SDD/CAREER_PILOT_JOB_MATCH_CHROME_SDD.md` (FASE 4 — real
+  job-page reading, extraction and the "Analyze Job" flow) for the full specs.
+
+All specs/SDDs generated for this project live under [`SDD/`](SDD/).
 
 ## Setup
 
@@ -78,5 +80,5 @@ scripts — the popup will correctly report the page as unavailable there.
 
 Extraction is generic (title/meta/JSON-LD/semantic DOM/visible text, in that
 priority order) — no platform-specific adapter is bundled yet; see
-`CAREER_PILOT_JOB_MATCH_CHROME_SDD.md` section 14 for the adapter strategy.
+`SDD/CAREER_PILOT_JOB_MATCH_CHROME_SDD.md` section 14 for the adapter strategy.
 Analysis never modifies the page or submits anything; it only reads text.

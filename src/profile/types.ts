@@ -55,9 +55,20 @@ export interface RetrievalOptions {
   minScore?: number;
 }
 
+/** Which retrieval mechanism produced a result (SDD "Local Semantic Retrieval" section 5). */
+export type RetrievalSource = "KEYWORD" | "SEMANTIC" | "HYBRID";
+
 export interface RetrievalResult {
   chunk: ProfileChunk;
+  /** Final score used for ranking/thresholding — for HYBRID results, this is `finalRetrievalScore`. */
   score: number;
+  /** Present only on HYBRID results: the underlying KeywordRetriever score before blending. */
+  lexicalScore?: number;
+  /** Present only on HYBRID results: the underlying SemanticRetriever score before blending. */
+  semanticScore?: number;
+  /** Present only on HYBRID results: `lexicalWeight * lexicalScore + semanticWeight * semanticScore`. */
+  finalRetrievalScore?: number;
+  retrievalSource?: RetrievalSource;
 }
 
 export interface CareerContextItem {

@@ -40,3 +40,29 @@ button {
   padding: 2px 0;
   word-break: break-word;
 }
+
+#form-fields {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+#form-fields li {
+  font-size: 11px;
+  padding: 2px 0;
+  word-break: break-word;
+  border-bottom: 1px solid #eee;
+}
+
+#retrieval-benchmark-output {
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 240px;
+  overflow-y: auto;
+  background: #f5f5f5;
+  padding: 6px;
+  margin: 4px 0 0;
+}

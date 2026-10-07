@@ -1,6 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Mock } from "vitest";
 
+// FASE 4.1-A viability spike ONLY (remove once the decision gate is
+// resolved): the real @huggingface/transformers package resolves to a
+// Node-native ONNX binding under Node/vitest that isn't available in this
+// environment — irrelevant to these service-worker orchestration tests, so
+// it's mocked out here rather than loaded for real.
+vi.mock("../../src/extension/background/embeddingSpike.js", () => ({
+  runEmbeddingSpike: vi.fn(async () => ({ overall: "NOT_VIABLE", steps: [] })),
+}));
+
 const VALID_PROFILE_JSON = JSON.stringify({
   id: "rodrigo-matos",
   name: "Rodrigo Matos Silva",
@@ -25,6 +34,14 @@ const JOB_RAW_MATERIALS = {
   visibleText: "",
 };
 
+const FORM_RAW_MATERIALS = {
+  url: "https://example.com/jobs/1/apply",
+  elements: [
+    { tag: "INPUT", inputType: "email", id: "email", required: true, labelText: "Email" },
+    { tag: "INPUT", inputType: "text", id: "salary", required: false, labelText: "Expected salary" },
+  ],
+};
+
 describe("service-worker", () => {
   let messageListener:
     | ((message: unknown, sender: unknown, sendResponse: (response: unknown) => void) => boolean)
@@ -41,6 +58,9 @@ describe("service-worker", () => {
       if (message.type === "EXTRACT_JOB_PAGE") {
         return { success: true, data: JOB_RAW_MATERIALS };
       }
+      if (message.type === "EXTRACT_FORM") {
+        return { success: true, data: FORM_RAW_MATERIALS };
+      }
       return { success: true, data: { alive: true } };
     });
 
@@ -54,6 +74,36 @@ describe("service-worker", () => {
             messageListener = fn;
           },
         },
+        // FASE 4.1-B spike only: minimal stubs so the auto-run on startup
+        // doesn't noisily reject in every test (it's fire-and-forget/caught
+        // regardless, these just keep test output clean). `connect` returns
+        // a fake Port whose onMessage never fires — the auto-run's promise
+        // simply never resolves, which is fine since nothing awaits it here.
+        getContexts: vi.fn(async () => []),
+        connect: vi.fn(() => {
+          const listeners: Array<(message: unknown) => void> = [];
+          const port = {
+            onMessage: { addListener: (fn: (message: unknown) => void) => listeners.push(fn) },
+            onDisconnect: { addListener: vi.fn() },
+            postMessage: vi.fn((message: { type?: string }) => {
+              // No real embedding runtime in tests: EMBED_TEXTS always
+              // fails fast so HybridRetriever gracefully degrades to
+              // keyword-only instead of the port just hanging (as the old
+              // fake port used to, which only ever backed the
+              // fire-and-forget spike auto-run, never an awaited call).
+              if (message?.type === "EMBED_TEXTS") {
+                listeners.forEach((listener) => listener({ ok: false, error: "no embedding runtime in tests" }));
+              }
+            }),
+            disconnect: vi.fn(),
+          };
+          return port;
+        }),
+        ContextType: { OFFSCREEN_DOCUMENT: "OFFSCREEN_DOCUMENT" },
+      },
+      offscreen: {
+        createDocument: vi.fn(async () => undefined),
+        Reason: { WORKERS: "WORKERS" },
       },
       tabs: {
         query: tabsQueryMock,
@@ -212,6 +262,80 @@ describe("service-worker", () => {
       };
       expect(response.success).toBe(false);
       expect(response.error?.code).toBe("NO_JOB_CONTENT");
+    });
+  });
+
+  describe("RUN_RETRIEVAL_BENCHMARK", () => {
+    it("compares keyword-only vs hybrid retrieval and reports Recall@3/Recall@5/MRR without crashing", async () => {
+      const response = (await send({ type: "RUN_RETRIEVAL_BENCHMARK" })) as {
+        success: boolean;
+        data?: {
+          keywordOnly: { recallAt3: number; recallAt5: number; mrr: number };
+          hybrid: { recallAt3: number; recallAt5: number; mrr: number };
+        };
+      };
+
+      expect(response.success).toBe(true);
+      // The test fixture profile has none of the benchmark's expected
+      // chunks (skills/leadership.md, achievements/leadership-impact.md),
+      // and there's no real embedding runtime in this environment — so
+      // every case legitimately comes back "not found" for both retrievers.
+      // This test only asserts the wiring doesn't crash and the shape is
+      // correct; real quality numbers require manual testing in Chrome.
+      expect(response.data?.keywordOnly.recallAt3).toBe(0);
+      expect(response.data?.hybrid.recallAt3).toBe(0);
+    });
+  });
+
+  describe("FASE 5 — Form Intelligence", () => {
+    it("ANALYZE_FORM runs the full extraction -> classification -> answer pipeline", async () => {
+      const response = (await send({ type: "ANALYZE_FORM" })) as {
+        success: boolean;
+        data?: { fields: unknown[]; intents: unknown[]; answers: unknown[]; summary: { totalFields: number } };
+      };
+
+      expect(response.success).toBe(true);
+      expect(response.data?.fields).toHaveLength(2);
+      expect(response.data?.intents).toHaveLength(2);
+      expect(response.data?.answers).toHaveLength(2);
+      expect(response.data?.summary.totalFields).toBe(2);
+      expect(tabsSendMessageMock).toHaveBeenCalledWith(42, { type: "EXTRACT_FORM" });
+    });
+
+    it("stores the result so a later GET_FORM_INTELLIGENCE returns it without re-analyzing", async () => {
+      await send({ type: "ANALYZE_FORM" });
+      tabsSendMessageMock.mockClear();
+
+      const response = (await send({ type: "GET_FORM_INTELLIGENCE" })) as { success: boolean; data: unknown };
+
+      expect(response.success).toBe(true);
+      expect(response.data).not.toBeNull();
+      expect(tabsSendMessageMock).not.toHaveBeenCalled();
+    });
+
+    it("returns data: null from GET_FORM_INTELLIGENCE before any analysis has run", async () => {
+      const response = (await send({ type: "GET_FORM_INTELLIGENCE" })) as { success: boolean; data: unknown };
+      expect(response).toEqual({ success: true, data: null });
+    });
+
+    it("returns NO_FORM_CONTENT when the page has no form fields", async () => {
+      tabsSendMessageMock.mockImplementationOnce(async (_tabId: number, message: { type: string }) => {
+        if (message.type === "EXTRACT_FORM") {
+          return { success: true, data: { url: "https://example.com/empty", elements: [] } };
+        }
+        return { success: true, data: { alive: true } };
+      });
+
+      const response = (await send({ type: "ANALYZE_FORM" })) as { success: boolean; error?: { code: string } };
+      expect(response.success).toBe(false);
+      expect(response.error?.code).toBe("NO_FORM_CONTENT");
+    });
+
+    it("returns CURRENT_TAB_NOT_AVAILABLE when there is no active tab", async () => {
+      tabsQueryMock.mockResolvedValueOnce([]);
+      const response = (await send({ type: "ANALYZE_FORM" })) as { success: boolean; error?: { code: string } };
+      expect(response.success).toBe(false);
+      expect(response.error?.code).toBe("CURRENT_TAB_NOT_AVAILABLE");
     });
   });
 });

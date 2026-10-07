@@ -12,7 +12,21 @@ export type ExtensionMessage =
   | { type: "GET_PAGE_CONTEXT" }
   | { type: "EXTRACT_JOB_PAGE" }
   | { type: "ANALYZE_CURRENT_JOB" }
-  | { type: "GET_MATCH_RESULT" };
+  | { type: "GET_MATCH_RESULT" }
+  // FASE 4.1-A/B viability spikes ONLY — remove once the decision gate is resolved.
+  | { type: "RUN_EMBEDDING_SPIKE" }
+  | { type: "RUN_OFFSCREEN_EMBEDDING_SPIKE" }
+  // FASE 4.1 (Local Semantic Retrieval): compares KeywordRetriever-only vs
+  // HybridRetriever recall/MRR on the known false-negative cases — real
+  // embedding quality can only be measured in actual Chrome (no ONNX
+  // runtime under vitest/Node), so this is reachable on demand rather than
+  // asserted in an automated test.
+  | { type: "RUN_RETRIEVAL_BENCHMARK" }
+  // FASE 5 (Form Intelligence): read-only form understanding — never fills,
+  // selects or submits anything (see FORA DA FASE 5).
+  | { type: "EXTRACT_FORM" }
+  | { type: "ANALYZE_FORM" }
+  | { type: "GET_FORM_INTELLIGENCE" };
 
 export type ExtensionMessageType = ExtensionMessage["type"];
 
@@ -32,7 +46,11 @@ export type ExtensionErrorCode =
   | "JOB_ANALYSIS_FAILED"
   | "MATCH_ANALYSIS_FAILED"
   | "PROFILE_CONTEXT_NOT_FOUND"
-  | "CURRENT_TAB_NOT_AVAILABLE";
+  | "CURRENT_TAB_NOT_AVAILABLE"
+  // FASE 5 (Form Intelligence):
+  | "NO_FORM_CONTENT"
+  | "FORM_EXTRACTION_FAILED"
+  | "FORM_ANALYSIS_FAILED";
 
 export interface ExtensionErrorPayload {
   code: ExtensionErrorCode;
@@ -53,6 +71,12 @@ const MESSAGE_TYPES: ReadonlySet<string> = new Set([
   "EXTRACT_JOB_PAGE",
   "ANALYZE_CURRENT_JOB",
   "GET_MATCH_RESULT",
+  "RUN_EMBEDDING_SPIKE",
+  "RUN_OFFSCREEN_EMBEDDING_SPIKE",
+  "RUN_RETRIEVAL_BENCHMARK",
+  "EXTRACT_FORM",
+  "ANALYZE_FORM",
+  "GET_FORM_INTELLIGENCE",
 ] satisfies ExtensionMessageType[]);
 
 /** Unknown/malformed messages must fail safely (SDD section 11) rather than being cast blindly. */

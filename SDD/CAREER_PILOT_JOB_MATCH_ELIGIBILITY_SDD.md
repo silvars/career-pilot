@@ -1559,7 +1559,7 @@ Profile Reader & Knowledge Retrieval
 ```
 
 deve estar implementado e testado antes da implementação completa do Job Match.
-**Status: concluído** (ver `PROFILE_READER_RETRIEVAL_SDD.md`).
+**Status: concluído** (ver `PROFILE_READER_RETRIEVAL_SDD.md`, mesmo diretório).
 
 A feature pode ser especificada e adicionada ao backlog antes disso, mas sua implementação deverá reutilizar as abstrações definitivas do Profile Reader.
 

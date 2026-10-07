@@ -1,5 +1,6 @@
 import type { ExtensionMessage, ExtensionResponse, PageContext } from "../messaging/messages.js";
 import type { RawElement, RawPageMaterials } from "../job-extraction/types.js";
+import { collectRawFormMaterials } from "./formExtractor.js";
 
 /**
  * FASE 3 shell only (SDD section 9): confirms the script is loaded and
@@ -61,6 +62,9 @@ chrome.runtime.onMessage.addListener(
         return false;
       case "EXTRACT_JOB_PAGE":
         sendResponse({ success: true, data: collectRawMaterials() });
+        return false;
+      case "EXTRACT_FORM":
+        sendResponse({ success: true, data: collectRawFormMaterials() });
         return false;
       default:
         // Not a message this content script handles — ignore (fail safely).

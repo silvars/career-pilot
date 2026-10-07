@@ -1333,7 +1333,7 @@ score 78/100 Good Match, auditado e explicável (seção 40.1).
   menor privilégio (sem aviso de instalação, escopo só na aba atual, ativado
   quando o usuário abre o popup, que já é obrigatório no nosso fluxo).
   `tests/extension/manifest.test.ts` atualizado para exigir exatamente essa
-  permissão. Ver também o adendo na seção 1.1 do `CAREER_PILOT_EXTENSION_SHELL_SDD.md`.
+  permissão. Ver também o adendo na seção 1.1 do `CAREER_PILOT_EXTENSION_SHELL_SDD.md` (mesmo diretório).
 
 - **Bug real em produção (validado no Chrome real, 2026-10-06): a vaga
   Akad/InHire deu 100/100 "Strong Match" tendo só título/senioridade como
